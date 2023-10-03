@@ -1,0 +1,13 @@
+[package]
+name = "ccan-rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+chrono = "0.4.31"
+delegate = "0.10.0"
+git2 = "0.18.1"
+ndarray = "0.15.6"
