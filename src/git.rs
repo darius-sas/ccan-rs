@@ -1,17 +1,20 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, TimeZone, Utc};
 use git2::{DiffDelta, Object, ObjectType, Repository, Sort};
+use itertools::Itertools;
 
 pub trait SimpleGit {
     fn list_objects(&self, branch: &str) -> Result<Vec<Object>>;
     fn diff(&self, parent: &Object, child: &Object) -> Vec<Diff>;
-    fn diff_with_previous(&self, objs: &Vec<Object>) -> Vec<Diff>;
+    fn diff_with_previous(&self, objs: &Vec<Object>) -> Diffs;
+    fn diffs(&self, branch: &str) -> Result<Diffs>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Hash)]
 pub struct Commit {
     pub sha1: String,
     pub author: String,
@@ -20,7 +23,7 @@ pub struct Commit {
     pub when: DateTime<Utc>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Hash)]
 pub struct Diff {
     pub parent: Commit,
     pub child: Commit,
@@ -125,6 +128,9 @@ impl Ord for Commit {
         }
     }
 }
+
+pub type Diffs = HashMap<Commit, Vec<Diff>>;
+
 impl SimpleGit for Repository {
     fn list_objects(&self, branch: &str) -> Result<Vec<Object>> {
         let mut revwalk = self.revwalk()?;
@@ -158,8 +164,7 @@ impl SimpleGit for Repository {
             .map(|d| Diff::from(&parent, &child, &d))
             .collect()
     }
-
-    fn diff_with_previous(&self, objs: &Vec<Object>) -> Vec<Diff> {
+    fn diff_with_previous(&self, objs: &Vec<Object>) -> Diffs {
         let n = objs.len() - 1;
         let mut diffs = Vec::with_capacity(n + 2);
         for i in 0..n {
@@ -167,6 +172,16 @@ impl SimpleGit for Repository {
             let child = &objs[i + 1];
             self.diff(parent, child).into_iter().for_each(|d| diffs.push(d))
         }
-        diffs
+        let grouped_diffs: HashMap<Commit, Vec<Diff>> = diffs.into_iter()
+            .group_by(|d| d.child.clone())
+            .into_iter()
+            .map(|(commit, group)| (commit, group.into_iter().collect()))
+            .collect();
+        grouped_diffs
+    }
+
+    fn diffs(&self, branch: &str) -> Result<Diffs> {
+        let objs = self.list_objects(branch)?;
+        Ok(self.diff_with_previous(&objs))
     }
 }

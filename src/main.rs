@@ -1,8 +1,11 @@
+use std::fs::File;
 use std::time::Instant;
-use chrono::{DateTime, Utc};
+use csv::WriterBuilder;
 use git2::Repository;
-use crate::git::{SimpleGit};
-use crate::ccan::{NamedMatrix};
+use ndarray_csv::Array2Writer;
+use crate::git::SimpleGit;
+use crate::ccan::CoChanges;
+
 mod git;
 mod ccan;
 
@@ -10,24 +13,39 @@ fn main() {
     let repo = Repository::open("/tmp/microservices-demo").unwrap();
     let branch = "main";
     let start = Instant::now();
-    let objs = repo.list_objects(branch).expect("cannot retrieve commits");
-    let _d = repo.diff(&objs[objs.len() - 1], &objs[objs.len() - 2]);
-    let diffs = repo.diff_with_previous(&objs);
+    let diffs = repo.diffs(branch).expect("cannot get diffs");
+    let mut cc = CoChanges::from_diffs(diffs);
+    cc.calculate_cc_freq(3);
     let end = Instant::now();
-    println!("{} commits retrieved", objs.len());
-    println!("{:?} diffs in {}ms", diffs.len(), (end - start).as_millis());
-    println!("{}", diffs[0]);
-    println!("{}", diffs[1]);
-    println!("{}", diffs[2]);
-    println!("{}", diffs[3]);
-    println!("{}", diffs[4]);
-    println!("{}", diffs[5]);
-    println!("{}", diffs[6]);
-    println!("{}", diffs[7]);
-    println!("{}", diffs[8]);
-    println!("{}", diffs[9]);
-    let mtrx= NamedMatrix::<String, DateTime<Utc>>::from_diffs(diffs);
+    let stop = end - start;
+    println!("Freq calc took {}ms", stop.as_millis());
+    println!("Freq dim {:?}", cc.cc_freq.as_ref().unwrap().matrix.dim());
+    cc.calculate_cc_prob();
+    let end = Instant::now();
+    let stop = end - start;
+    println!("Prob calc took {}ms", stop.as_millis());
 
-    println!("{:?}", &mtrx.row_names[0..5]);
-    println!("{:?}", &mtrx.col_names[0..5]);
+    {
+        let file = File::create("cc-freq.csv").expect("cannot create file");
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(file);
+        writer.serialize_array2(&cc.cc_freq.as_ref().unwrap().matrix).expect("cannot write file");
+    }
+
+    {
+        let file = File::create("cc-probs.csv").expect("cannot create file");
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(file);
+        writer.serialize_array2(&cc.cc_prob.as_ref().unwrap().matrix).expect("cannot write file");
+    }
+
+    {
+        let file = File::create("cc-files.csv").expect("cannot create file");
+        let mut writer = WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(file);
+        writer.serialize(&cc.cc_prob.as_ref().unwrap().row_names).expect("cannot write file");
+    }
 }
