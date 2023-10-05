@@ -40,7 +40,7 @@ fn run(args: Args) -> Result<()> {
     cc.calculate_cc_freq(args.changes_min);
     cc.filter_freqs(args.freq_min);
     if let Some(cc_freqs) = &cc.cc_freq {
-        fs::create_dir(args.output_dir)?;
+        fs::create_dir_all(args.output_dir)?;
         write_matrix(cc_freqs_file, &cc_freqs.matrix)?;
         write_arr(cc_files_file, &cc_freqs.col_names)?
     }
