@@ -139,6 +139,16 @@ impl CoChanges {
         self.cc_freq = Some(cc_freq);
     }
 
+    pub fn filter_freqs(&mut self, min_freq: u32) {
+        if let Some(cc_freqs) = &mut self.cc_freq {
+            let min_freq = &mut (min_freq as f64);
+            cc_freqs.matrix
+                .map_inplace(|f| if f.le(&min_freq) {
+                    f.assign_elem(0f64);
+                })
+        }
+    }
+
     fn cc_coefficient(f1: &ArrayView1<f64>, f2: &ArrayView1<f64>, dates_dist: &Array2<f64>) -> f64 {
         let mut coeff = 0f64;
         let n = f1.len();
