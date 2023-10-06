@@ -1,17 +1,27 @@
+use std::fs;
 use std::fs::File;
-use std::path::Path;
+use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use csv::WriterBuilder;
+use itertools::Itertools;
 use ndarray::Array2;
 use ndarray_csv::Array2Writer;
 use serde::Serialize;
 
+pub fn create_path(names: &[&str]) -> String {
+    names.iter().map(PathBuf::from)
+        .coalesce(|x, y| Ok(x.join(y)))
+        .into_iter()
+        .map(|p| String::from(p.to_str().unwrap()))
+        .join("")
+}
 
-pub fn p(dir: &String, file: &str) -> Result<String> {
-   Path::new(dir).join(file).as_path().to_str()
-       .map(String::from)
-       .ok_or(anyhow!("cannot create path in directory {}", dir))
+pub fn mkdir(output_dir: &String) -> Result<()> {
+    match fs::create_dir_all(&output_dir) {
+        Err(_) => bail!("Cannot create output dir {}", output_dir),
+        _ => Ok(())
+    }
 }
 pub fn write_matrix<A: Serialize>(path: &String, matrix: &Array2<A>) -> Result<()>{
     let file = File::create(path)?;
@@ -27,4 +37,15 @@ pub fn write_arr<A: Serialize>(path: &String, matrix: &Vec<A>) -> Result<()>{
         .has_headers(false)
         .from_writer(file);
     Ok(writer.serialize(matrix)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::output::create_path;
+
+    #[test]
+    fn test_paths(){
+        let path = create_path(&["/tmp", "ccan-rs", "repo"]);
+        println!("{}", path)
+    }
 }
