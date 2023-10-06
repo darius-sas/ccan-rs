@@ -1,17 +1,18 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::ops::Sub;
 
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{Datelike, DateTime, Days, TimeZone, Utc};
 use git2::{DiffDelta, Object, ObjectType, Repository, Sort};
 use itertools::Itertools;
 
 pub trait SimpleGit {
     fn list_objects(&self, branch: &str) -> Result<Vec<Object>>;
     fn diff(&self, parent: &Object, child: &Object) -> Vec<Diff>;
-    fn diff_with_previous(&self, objs: &Vec<Object>) -> Diffs;
-    fn diffs(&self, branch: &str) -> Result<Diffs>;
+    fn diff_with_previous(&self, objs: &Vec<Object>, binning: &DateGrouping) -> Diffs;
+    fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs>;
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -129,7 +130,7 @@ impl Ord for Commit {
     }
 }
 
-pub type Diffs = HashMap<Commit, Vec<Diff>>;
+pub type Diffs = HashMap<DateTime<Utc>, Vec<Diff>>;
 
 impl SimpleGit for Repository {
     fn list_objects(&self, branch: &str) -> Result<Vec<Object>> {
@@ -164,7 +165,7 @@ impl SimpleGit for Repository {
             .map(|d| Diff::from(&parent, &child, &d))
             .collect()
     }
-    fn diff_with_previous(&self, objs: &Vec<Object>) -> Diffs {
+    fn diff_with_previous(&self, objs: &Vec<Object>, binning: &DateGrouping) -> Diffs {
         let n = objs.len() - 1;
         let mut diffs = Vec::with_capacity(n + 2);
         for i in 0..n {
@@ -172,16 +173,113 @@ impl SimpleGit for Repository {
             let child = &objs[i + 1];
             self.diff(parent, child).into_iter().for_each(|d| diffs.push(d))
         }
-        let grouped_diffs: HashMap<Commit, Vec<Diff>> = diffs.into_iter()
-            .group_by(|d| d.child.clone())
+        let grouped_diffs: HashMap<DateTime<Utc>, Vec<Diff>> = diffs.into_iter()
+            .group_by(|d| binning.get_group(&d.child.when))
             .into_iter()
             .map(|(commit, group)| (commit, group.into_iter().collect()))
             .collect();
         grouped_diffs
     }
 
-    fn diffs(&self, branch: &str) -> Result<Diffs> {
+    fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs> {
         let objs = self.list_objects(branch)?;
-        Ok(self.diff_with_previous(&objs))
+        Ok(self.diff_with_previous(&objs, binning))
+    }
+}
+
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum DateGrouping {
+    None,
+    Daily,
+    Weekly,
+    Monthly,
+}
+
+impl Display for DateGrouping{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DateGrouping::None => "none",
+            DateGrouping::Daily => "daily",
+            DateGrouping::Weekly => "weekly",
+            DateGrouping::Monthly => "monthly"
+        };
+        write!(f, "{s}")
+    }
+}
+impl DateGrouping {
+
+    pub fn get_group(&self, d: &DateTime<Utc>) -> DateTime<Utc> {
+        match self {
+            DateGrouping::None => d.clone(),
+            DateGrouping::Daily => {
+                Utc.with_ymd_and_hms(
+                    d.year(),
+                    d.month(),
+                    d.day(),
+                    0,
+                    0,
+                    0
+                ).unwrap()
+            },
+            DateGrouping::Weekly => {
+                Utc.with_ymd_and_hms(
+                    d.year(),
+                    d.month(),
+                    d.day(),
+                    0,
+                    0,
+                    0
+                ).unwrap().sub(Days::new(d.weekday().num_days_from_monday() as u64))
+            },
+            DateGrouping::Monthly => {
+                Utc.with_ymd_and_hms(
+                    d.year(),
+                    d.month(),
+                    1,
+                    0,
+                    0,
+                    0
+                ).unwrap()
+            }
+        }
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeZone, Utc};
+
+    use crate::git::DateGrouping;
+
+    #[test]
+    fn test_test_grouping() {
+        let daily = DateGrouping::Daily;
+        let date1 = Utc.with_ymd_and_hms(2023, 10, 30, 11, 00, 00).unwrap();
+        let date2 = Utc.with_ymd_and_hms(2023, 10, 30, 12, 30, 00).unwrap();
+        let date3 = Utc.with_ymd_and_hms(2023, 10, 31, 11, 00, 00).unwrap();
+
+        assert_eq!(daily.get_group(&date1), daily.get_group(&date2));
+        assert_ne!(daily.get_group(&date1), daily.get_group(&date3));
+        assert_ne!(daily.get_group(&date2), daily.get_group(&date3));
+
+        let weekly = DateGrouping::Weekly;
+        let date1 = Utc.with_ymd_and_hms(2023, 10, 30, 12, 00, 01).unwrap();
+        let date2 = Utc.with_ymd_and_hms(2023, 10, 31, 12, 30, 00).unwrap();
+        let date3 = Utc.with_ymd_and_hms(2023, 10, 28, 11, 00, 00).unwrap();
+
+        assert_eq!(weekly.get_group(&date1), weekly.get_group(&date2));
+        assert_ne!(weekly.get_group(&date1), weekly.get_group(&date3));
+        assert_ne!(weekly.get_group(&date2), weekly.get_group(&date3));
+
+        let monthly = DateGrouping::Monthly;
+        let date1 = Utc.with_ymd_and_hms(2023, 10, 30, 12, 00, 01).unwrap();
+        let date2 = Utc.with_ymd_and_hms(2023, 10, 3, 12, 30, 00).unwrap();
+        let date3 = Utc.with_ymd_and_hms(2023, 9, 28, 11, 00, 00).unwrap();
+
+        assert_eq!(monthly.get_group(&date1), monthly.get_group(&date2));
+        assert_ne!(monthly.get_group(&date1), monthly.get_group(&date3));
+        assert_ne!(monthly.get_group(&date2), monthly.get_group(&date3));
     }
 }

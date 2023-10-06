@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::{bail, Result};
 use clap::{arg, Parser};
 use crate::ccan::{Analysis, Options};
+use crate::git::DateGrouping;
 use crate::output::{create_path, mkdir, write_arr, write_matrix};
 
 mod git;
@@ -21,8 +22,8 @@ struct Args {
     changes_min: u32,
     #[arg(short, long, default_value = "5")]
     freq_min: u32,
-    #[arg(short, long, default_value = "0")]
-    days_binning: u32,
+    #[arg(short, long, default_value = "none")]
+    date_binning: DateGrouping,
     #[arg(short, long, required = true)]
     output_dir: String,
 }
@@ -31,15 +32,18 @@ fn run(args: Args) -> Result<()> {
     let basename = Path::new(args.repository.as_str())
         .file_name().map_or_else(||"repo", |p| p.to_str().unwrap());
     let output_dir = create_path(&[args.output_dir.as_str(), "ccan-output", basename]);
-    let cc_freqs_file =  &create_path(&[output_dir.as_str(), "cc_freqs.csv"]);
-    let cc_probs_file = &create_path(&[output_dir.as_str(), "cc_probs.csv"]);
-    let cc_files_file = &create_path(&[output_dir.as_str(), "cc_files.csv"]);
+    let d = &args.date_binning;
+    let c = args.changes_min;
+    let f = args.changes_min;
+    let cc_freqs_file =  &create_path(&[output_dir.as_str(), format!("cc_freqs-d{d}-c{c}-f{f}.csv").as_str()]);
+    let cc_probs_file = &create_path(&[output_dir.as_str(), format!("cc_probs-d{d}-c{c}-f{f}.csv").as_str()]);
+    let cc_files_file = &create_path(&[output_dir.as_str(), format!("cc_files-d{d}-c{c}-f{f}.csv").as_str()]);
 
     println!("Started analysing {}", args.repository.as_str());
     let mut analysis = Analysis::new(Options {
         repository: args.repository,
         branch: args.branch,
-        days_binning: args.days_binning,
+        binning: args.date_binning,
         freq_min: args.freq_min,
         changes_min: args.changes_min,
     });
@@ -69,7 +73,7 @@ fn main() {
     let args = Args::parse();
     match run(args) {
         Err(e) => {
-            println!("Error occurred: {}", e)
+            println!("Error occurred: {}", e);
         }
         _ => ()
     }

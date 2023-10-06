@@ -3,7 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
 use crate::ccan::AnalysisStatus::{Completed, Failed, Initialized, Running};
 use crate::cochanges::CoChanges;
-use crate::git::SimpleGit;
+use crate::git::{DateGrouping, SimpleGit};
 
 pub enum AnalysisStatus {
     Initialized,
@@ -26,7 +26,7 @@ pub struct Options {
     pub branch: String,
     pub changes_min: u32,
     pub freq_min: u32,
-    pub days_binning: u32,
+    pub binning: DateGrouping
 }
 
 impl Analysis {
@@ -54,7 +54,7 @@ impl Analysis {
 
     fn execute(opt: &Options) -> Result<CoChanges> {
         let repo = Repository::open(&opt.repository)?;
-        let diffs = repo.diffs(opt.branch.as_str())?;
+        let diffs = repo.diffs(opt.branch.as_str(), &opt.binning)?;
         let mut cc = CoChanges::from_diffs(diffs);
         cc.calculate_cc_freq(opt.changes_min);
         cc.filter_freqs(opt.freq_min);

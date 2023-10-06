@@ -64,7 +64,7 @@ impl CoChanges {
         rows.sort();
         rows.dedup();
         let mut cols = diffs.keys()
-            .map(|d| d.when.clone())
+            .map(|d| d.clone())
             .collect::<Vec<DateTime<Utc>>>();
         cols.sort();
         cols.dedup();
@@ -79,13 +79,11 @@ impl CoChanges {
     }
 
     pub fn calculate_changes(diffs: Diffs, changes: &mut NamedMatrix<String, DateTime<Utc>>) {
-        for pair in diffs {
-            let commit = pair.0;
-            let diffs_in_commit = pair.1;
+        for (dates, diffs_in_commit) in diffs {
             for diff in diffs_in_commit {
                 let file = diff.new_file;
                 let row = changes.index_of_row(&file);
-                let col = changes.index_of_col(&commit.when);
+                let col = changes.index_of_col(&dates);
                 match (row, col) {
                     (Some(r), Some(c)) => {
                         changes.matrix[[r, c]] += 1.0
@@ -191,7 +189,7 @@ mod tests {
     use ndarray::{array, Array2, s};
 
     use crate::cochanges::{CoChanges, NamedMatrix};
-    use crate::git::{Commit, Diff, Diffs, SimpleGit};
+    use crate::git::{Commit, DateGrouping, Diff, Diffs, SimpleGit};
 
     #[test]
     fn test_matrix() {
@@ -205,7 +203,7 @@ mod tests {
     fn test_cochanges() {
         let repo = Repository::open("/tmp/microservices-demo").unwrap();
         let branch = "main";
-        let diffs = repo.diffs(branch).expect("cannot get diffs");
+        let diffs = repo.diffs(branch, &DateGrouping::None).expect("cannot get diffs");
 
         let changes = CoChanges::from_diffs(diffs);
 
@@ -226,8 +224,8 @@ mod tests {
         let d4 = Diff { parent: c2.clone(), child: c3.clone(), old_file: String::from("my/file.txt"), new_file: String::from("my/file.txt") };
         let d5 = Diff { parent: c2.clone(), child: c3.clone(), old_file: String::from("my/file3.txt"), new_file: String::from("my/file3.txt") };
         let mut diffs = Diffs::new();
-        diffs.insert(c2, vec![d1, d2, d3].clone());
-        diffs.insert(c3, vec![d4, d5].clone());
+        diffs.insert(c2.when, vec![d1, d2, d3].clone());
+        diffs.insert(c3.when, vec![d4, d5].clone());
 
         let mut cc = CoChanges::from_diffs(diffs);
         let mut expected = Array2::<f64>::ones((3, 2));
