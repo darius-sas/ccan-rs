@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::ops::{AddAssign, Div, Sub};
 
 use chrono::{DateTime, Utc};
+use log::debug;
 use ndarray::{Array2, ArrayView1, AssignElem};
 
 use crate::git::Diffs;
@@ -94,6 +95,7 @@ impl CoChanges {
         }
     }
     pub fn calculate_cc_freq(&mut self, min_change_freq: u32) {
+        debug!("Calculating co-changes from {} commits and {} files", self.changes.col_names.len(), self.changes.row_names.len());
         let min_change_freq = min_change_freq as f64;
         let mut filt_row_names = Vec::<String>::new();
         for row in self.changes.row_names.iter() {
@@ -164,7 +166,10 @@ impl CoChanges {
     }
 
     pub fn dates_distance(dates: &Vec<DateTime<Utc>>, distance_smooth: fn(&mut f64) -> ()) -> Array2<f64> {
-        let mut mtrx = Array2::<f64>::zeros((dates.len(), dates.len()));
+        let shape = (dates.len(), dates.len());
+        debug!("Initializing dates distance matrix of shape {:?}", shape);
+        let mut mtrx = Array2::<f64>::zeros(shape);
+        debug!("Starting calculating dates distance");
         for i in 0..dates.len() {
             let d1 = dates[i];
             for j in (0..i).rev() {

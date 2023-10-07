@@ -7,11 +7,13 @@ use anyhow::{anyhow, Result};
 use chrono::{Datelike, DateTime, Days, TimeZone, Utc};
 use git2::{DiffDelta, Object, ObjectType, Repository, Sort};
 use itertools::Itertools;
+use log::debug;
 
 pub trait SimpleGit {
     fn list_objects(&self, branch: &str) -> Result<Vec<Object>>;
     fn diff(&self, parent: &Object, child: &Object) -> Vec<Diff>;
     fn diff_with_previous(&self, objs: &Vec<Object>, binning: &DateGrouping) -> Diffs;
+    fn diff_with_previous2(&self, objs: &Vec<Object>, binning: &DateGrouping) -> HashMap<DateTime<Utc>, Vec<Diff>>;
     fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs>;
 }
 
@@ -168,11 +170,13 @@ impl SimpleGit for Repository {
     fn diff_with_previous(&self, objs: &Vec<Object>, binning: &DateGrouping) -> Diffs {
         let n = objs.len() - 1;
         let mut diffs = Vec::with_capacity(n + 2);
+        debug!("Calculating diffs");
         for i in 0..n {
             let parent = &objs[i];
             let child = &objs[i + 1];
             self.diff(parent, child).into_iter().for_each(|d| diffs.push(d))
         }
+        debug!("Grouping commits using {} strategy", binning);
         let grouped_diffs: HashMap<DateTime<Utc>, Vec<Diff>> = diffs.into_iter()
             .group_by(|d| binning.get_group(&d.child.when))
             .into_iter()
@@ -183,7 +187,8 @@ impl SimpleGit for Repository {
 
     fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs> {
         let objs = self.list_objects(branch)?;
-        Ok(self.diff_with_previous(&objs, binning))
+        debug!("Mined {} commits on branch {}", objs.len(), branch);
+        Ok(self.diff_with_previous2(&objs, binning))
     }
 }
 

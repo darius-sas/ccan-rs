@@ -2,6 +2,8 @@ use std::path::Path;
 
 use anyhow::{bail, Result};
 use clap::{arg, Parser};
+use log::{info, LevelFilter, warn};
+use simple_logger::SimpleLogger;
 use crate::ccan::{Analysis, Options};
 use crate::git::DateGrouping;
 use crate::output::{create_path, mkdir, write_arr, write_matrix};
@@ -39,7 +41,7 @@ fn run(args: Args) -> Result<()> {
     let cc_probs_file = &create_path(&[output_dir.as_str(), format!("cc_probs-d{d}-c{c}-f{f}.csv").as_str()]);
     let cc_files_file = &create_path(&[output_dir.as_str(), format!("cc_files-d{d}-c{c}-f{f}.csv").as_str()]);
 
-    println!("Started analysing {}", args.repository.as_str());
+    info!("Started analysing {}", args.repository.as_str());
     let mut analysis = Analysis::new(Options {
         repository: args.repository,
         branch: args.branch,
@@ -49,7 +51,7 @@ fn run(args: Args) -> Result<()> {
     });
     match analysis.run() {
         Ok(cc) => {
-            println!("Writing output to {}", output_dir.as_str());
+            info!("Writing output to {}", output_dir.as_str());
             if let Some(cc_freqs) = &cc.cc_freq {
                 mkdir(&output_dir)?;
                 write_matrix(cc_freqs_file, &cc_freqs.matrix)?;
@@ -58,11 +60,11 @@ fn run(args: Args) -> Result<()> {
             if let Some(cc_probs) = &cc.cc_prob {
                 write_matrix(cc_probs_file, &cc_probs.matrix)?
             }
-            println!("Completed in {}ms", analysis.duration.num_milliseconds());
+            info!("Completed in {}ms", analysis.duration.num_milliseconds());
             Ok(())
         }
         Err(e) => {
-            println!("Failed in {}ms", &analysis.duration.num_milliseconds());
+            warn!("Failed in {}ms", &analysis.duration.num_milliseconds());
             bail!(e)
         }
     }
@@ -71,9 +73,12 @@ fn run(args: Args) -> Result<()> {
 
 fn main() {
     let args = Args::parse();
+    SimpleLogger::new()
+        .with_level(LevelFilter::Debug)
+        .init().unwrap();
     match run(args) {
         Err(e) => {
-            println!("Error occurred: {}", e);
+            info!("Error occurred: {}", e);
         }
         _ => ()
     }
