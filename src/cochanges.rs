@@ -79,7 +79,7 @@ impl CoChanges {
     }
 
     pub fn calculate_changes(diffs: Diffs, changes: &mut NamedMatrix<String, DateTime<Utc>>) {
-        for (dates, diffs_in_commit) in diffs {
+        for (dates, diffs_in_commit) in diffs { 
             for diff in diffs_in_commit {
                 let file = diff.new_file;
                 let row = changes.index_of_row(&file);
@@ -154,7 +154,7 @@ impl CoChanges {
         let n = f1.len();
         for i in (0..n).rev() {
             if f1[i] < 1e-5 { continue }
-            for j in (0..n).rev() {
+            for j in (0..=i).rev() {
                 if (f2[j] - 1f64).abs() < 1e-5 {
                     coeff = coeff + dates_dist[[i, j]];
                 }
@@ -182,11 +182,15 @@ impl CoChanges {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::{File, read_to_string};
     use std::ops::Sub;
+    use std::str::FromStr;
 
-    use chrono::{Days, Utc};
+    use chrono::{DateTime, Days, Utc};
+    use csv::ReaderBuilder;
     use git2::Repository;
-    use ndarray::{array, Array2, s};
+    use ndarray::{array, Array2, AssignElem, s};
+    use ndarray_csv::Array2Reader;
 
     use crate::cochanges::{CoChanges, NamedMatrix};
     use crate::git::{Commit, DateGrouping, Diff, Diffs, SimpleGit};
@@ -239,16 +243,50 @@ mod tests {
         assert_eq!(expected, cc.cc_prob.as_ref().unwrap().matrix);
     }
 
-    // #[test]
-    // fn test_dates_diff() {
-    //     let dates = ["2018-06-01T21:26:03Z", "2018-07-01T21:26:55Z", "2018-07-15T22:00:54Z", "2018-08-01T22:09:57Z", "2018-08-02T17:42:24Z"];
-    //     let dates: Vec<DateTime<Utc>> = dates.iter()
-    //         .filter_map(|d| match DateTime::parse_from_rfc3339(*d) {
-    //             Ok(d) => {Some(d)}
-    //             Err(e) => {println!("{}", e); None}
-    //         })
-    //         .map(|d| d.naive_utc().and_utc())
-    //         .collect();
-    //     println!("{:?}", dates_distance(dates, |f| f.assign_elem(f.sqrt())))
-    // }
+
+    #[test]
+    fn test_dates_dist() {
+        let dates: Vec<DateTime<Utc>> = read_to_string("test-data/sampled_dates.csv").unwrap()
+            .lines()
+            .map(|s| i64::from_str(s).unwrap())
+            .map(|i| DateTime::<Utc>::from_timestamp(i, 0).unwrap())
+            .collect();
+
+        let mut actual = CoChanges::dates_distance(&dates, |f| f.assign_elem(f.sqrt()));
+        let file = File::open("test-data/expected_dates_distance.csv").unwrap();
+        let mut reader = ReaderBuilder::new()
+            .has_headers(false)
+            .delimiter(b' ')
+            .from_reader(file);
+        let mut expected: Array2<f64> = reader
+            .deserialize_array2((dates.len(), dates.len())).unwrap();
+        expected.map_inplace(|f| f.assign_elem((f.clone() * 1e6).trunc() / 1e6));
+        actual.map_inplace(|f| f.assign_elem((f.clone() * 1e6).trunc() / 1e6));
+
+        assert_eq!(expected, actual)
+    }
+    #[test]
+    fn test_cc_coeff() {
+        let dates: Vec<DateTime<Utc>> = read_to_string("test-data/sampled_dates.csv").unwrap()
+            .lines()
+            .map(|s| i64::from_str(s).unwrap())
+            .map(|i| DateTime::<Utc>::from_timestamp(i, 0).unwrap())
+            .collect();
+        let dates_distance = CoChanges::dates_distance(&dates, |f| f.assign_elem(f.sqrt()));
+        let file = File::open("test-data/changes.csv").unwrap();
+        let mut reader = ReaderBuilder::new()
+            .has_headers(false)
+            .delimiter(b' ')
+            .from_reader(file);
+        let changes: Array2<f64> = reader
+            .deserialize_array2((2, dates.len())).unwrap();
+
+        let cc_coeff = CoChanges::cc_coefficient(&changes.row(0), &changes.row(1), &dates_distance);
+
+        let expected = read_to_string("test-data/expected_coeff.csv").unwrap();
+        let expected = f64::from_str(expected.trim()).unwrap();
+
+        assert!((cc_coeff - expected).abs() < 1e-6)
+
+    }
 }
