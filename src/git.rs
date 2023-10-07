@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{max, Ordering};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Sub;
@@ -13,8 +13,8 @@ pub trait SimpleGit {
     fn list_objects(&self, branch: &str) -> Result<Vec<Object>>;
     fn diff(&self, parent: &Object, child: &Object) -> Vec<Diff>;
     fn diff_with_previous(&self, objs: &Vec<Object>, binning: &DateGrouping) -> Diffs;
-    fn diff_with_previous2(&self, objs: &Vec<Object>, binning: &DateGrouping) -> HashMap<DateTime<Utc>, Vec<Diff>>;
     fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs>;
+    fn diffs_max(&self, branch: &str, binning: &DateGrouping, max_commits: usize) -> Result<Diffs>;
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -185,10 +185,18 @@ impl SimpleGit for Repository {
         grouped_diffs
     }
 
-    fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs> {
-        let objs = self.list_objects(branch)?;
+    fn diffs_max(&self, branch: &str, binning: &DateGrouping, max_commits: usize) -> Result<Diffs> {
+        let mut objs = self.list_objects(branch)?;
+        let n_skip = max(0,objs.len() - max_commits);
+        if n_skip > 0 {
+            objs = objs.into_iter().skip(n_skip).collect();
+        }
         debug!("Mined {} commits on branch {}", objs.len(), branch);
-        Ok(self.diff_with_previous2(&objs, binning))
+        Ok(self.diff_with_previous(&objs, binning))
+    }
+
+    fn diffs(&self, branch: &str, binning: &DateGrouping) -> Result<Diffs> {
+        self.diffs_max(branch, binning, usize::MAX)
     }
 }
 

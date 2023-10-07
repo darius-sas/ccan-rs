@@ -26,7 +26,8 @@ pub struct Options {
     pub branch: String,
     pub changes_min: u32,
     pub freq_min: u32,
-    pub binning: DateGrouping
+    pub binning: DateGrouping,
+    pub max_commits: u32
 }
 
 impl Analysis {
@@ -54,7 +55,7 @@ impl Analysis {
 
     fn execute(opt: &Options) -> Result<CoChanges> {
         let repo = Repository::open(&opt.repository)?;
-        let diffs = repo.diffs(opt.branch.as_str(), &opt.binning)?;
+        let diffs = repo.diffs_max(opt.branch.as_str(), &opt.binning, opt.max_commits as usize)?;
         let mut cc = CoChanges::from_diffs(diffs);
         cc.calculate_cc_freq(opt.changes_min);
         cc.filter_freqs(opt.freq_min);

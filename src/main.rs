@@ -24,6 +24,8 @@ struct Args {
     changes_min: u32,
     #[arg(short, long, default_value = "5")]
     freq_min: u32,
+    #[arg(short, long, default_value = "10000")]
+    max_commits: u32,
     #[arg(short, long, default_value = "none")]
     date_binning: DateGrouping,
     #[arg(short, long, required = true)]
@@ -48,6 +50,7 @@ fn run(args: Args) -> Result<()> {
         binning: args.date_binning,
         freq_min: args.freq_min,
         changes_min: args.changes_min,
+        max_commits: args.max_commits
     });
     match analysis.run() {
         Ok(cc) => {
