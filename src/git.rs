@@ -1,4 +1,4 @@
-use std::cmp::{max, Ordering};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Sub;
@@ -187,9 +187,9 @@ impl SimpleGit for Repository {
 
     fn diffs_max(&self, branch: &str, binning: &DateGrouping, max_commits: usize) -> Result<Diffs> {
         let mut objs = self.list_objects(branch)?;
-        let n_skip = max(0,objs.len() - max_commits);
+        let n_skip = (objs.len() as i32) - (max_commits as i32);
         if n_skip > 0 {
-            objs = objs.into_iter().skip(n_skip).collect();
+            objs = objs.into_iter().skip(n_skip as usize).collect();
         }
         debug!("Mined {} commits on branch {}", objs.len(), branch);
         Ok(self.diff_with_previous(&objs, binning))

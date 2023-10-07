@@ -112,6 +112,7 @@ impl CoChanges {
             filt_row_names.clone(),
             Some("impacted"),
             Some("changed"));
+        debug!("Calculating dates distance");
         let dates_dist = CoChanges::dates_distance(&self.changes.col_names, |x| x.assign_elem(x.sqrt()));
         for i in 0..n {
             let row_i = self.changes.matrix.row(i);
@@ -167,9 +168,7 @@ impl CoChanges {
 
     pub fn dates_distance(dates: &Vec<DateTime<Utc>>, distance_smooth: fn(&mut f64) -> ()) -> Array2<f64> {
         let shape = (dates.len(), dates.len());
-        debug!("Initializing dates distance matrix of shape {:?}", shape);
         let mut mtrx = Array2::<f64>::zeros(shape);
-        debug!("Starting calculating dates distance");
         for i in 0..dates.len() {
             let d1 = dates[i];
             for j in (0..i).rev() {
