@@ -5,6 +5,7 @@ use std::ops::{AddAssign, Div, Sub};
 use chrono::{DateTime, Utc};
 use log::debug;
 use ndarray::{Array2, ArrayView1, AssignElem};
+use crate::bettergit::GroupedBetterDiffs;
 
 use crate::git::Diffs;
 

@@ -12,6 +12,7 @@ mod git;
 mod ccan;
 mod cochanges;
 mod output;
+mod bettergit;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
