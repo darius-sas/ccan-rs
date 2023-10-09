@@ -182,6 +182,10 @@ impl CoChanges {
         mtrx.map_inplace(|i| i.assign_elem(1f64.div(*i)));
         mtrx
     }
+
+    fn predict() {
+        todo!()
+    }
 }
 
 

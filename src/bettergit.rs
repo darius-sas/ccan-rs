@@ -1,11 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::Sub;
 use std::rc::Rc;
 use git2::{Commit, Diff, Object, ObjectType, Repository, Sort};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Days, TimeZone, Utc};
-use itertools::{all, Itertools};
+use itertools::Itertools;
 use log::debug;
+use regex::{Error, Regex};
 use crate::git::DateGrouping;
 
 #[derive(Debug, Clone, Hash)]
@@ -22,11 +23,21 @@ pub struct BetterDiff {
     pub new_files: Vec<Rc<String>>,
 }
 
+pub struct BetterGitOpt {
+    pub commit_filters: CommitFilteringOpt,
+    pub file_filters: FileFilteringOpt
+}
+
 pub struct CommitFilteringOpt {
     pub branch: String,
     pub until: DateTime<Utc>,
     pub since: DateTime<Utc>,
-    pub binning: DateGrouping
+    pub binning: DateGrouping,
+}
+
+pub struct FileFilteringOpt {
+    pub exclude_paths: Regex,
+    pub include_paths: Regex
 }
 
 pub type GroupedBetterDiffs = HashMap<DateTime<Utc>, BetterDiff>;
@@ -62,14 +73,66 @@ impl CommitFilteringOpt {
     }
 }
 
+impl FileFilteringOpt {
+    pub fn new(exclude_patterns: &[&str], include_patterns: &[&str]) -> FileFilteringOpt {
+        FileFilteringOpt {
+            exclude_paths: FileFilteringOpt::vec_to_regex(exclude_patterns)
+                .expect("invalid exclude path regex"),
+            include_paths: FileFilteringOpt::vec_to_regex(include_patterns)
+                .expect("invalid include path regex")
+        }
+    }
+
+    fn vec_to_regex(regex_vec: &[&str]) -> std::result::Result<Regex, Error> {
+        match regex_vec.len() {
+            0 => Regex::new(r".*"),
+            1 => Regex::new(regex_vec[0]),
+            _ => {
+                let mut regex_str = regex_vec.join("|").to_owned();
+                regex_str.insert(0, '(');
+                regex_str.push(')');
+                Regex::new(regex_str.as_str())
+            }
+        }
+    }
+
+    pub fn accept_all() -> FileFilteringOpt {
+        FileFilteringOpt::new(&[r"a^"], &[r".*"])
+    }
+
+    pub fn accept_none() -> FileFilteringOpt {
+        FileFilteringOpt::new(&[r".*"], &[r"a^"])
+    }
+
+    pub fn include_only(include_patterns: &[&str]) -> FileFilteringOpt {
+        FileFilteringOpt::new(&[r"a^"], include_patterns)
+    }
+
+    pub fn exclude_only(exclude_patterns: &[&str]) -> FileFilteringOpt {
+        FileFilteringOpt::new(exclude_patterns, &[r".*"])
+    }
+
+    pub fn exclude(&self, path: &String) -> bool {
+        self.exclude_paths.is_match(path)
+    }
+
+    pub fn include(&self, path: &String) -> bool {
+        self.include_paths.is_match(path)
+    }
+
+    pub fn matches(&self, path: &String) -> bool {
+        !self.exclude(path) && self.include(path)
+    }
+}
+
 trait BetterGit {
     fn mine_objects(&self, filters: &CommitFilteringOpt) -> Result<Vec<Object>>;
     fn sample_commits<'repo>(objects: Vec<Object<'repo>>, binning: &DateGrouping) -> Vec<Object<'repo>>;
 
     fn diff(&self, parent: &Object, child: &Object) -> Result<Diff>;
-    fn diffs(&self, objects: &Vec<Object>) -> GroupedBetterDiffs;
+    fn diffs(&self, objects: &Vec<Object>, file_filters: &FileFilteringOpt) -> GroupedBetterDiffs;
 
-    fn mine_diffs(&self, filters: CommitFilteringOpt) -> Result<GroupedBetterDiffs>;
+    fn mine_diffs(&self, options: &BetterGitOpt) -> Result<GroupedBetterDiffs>;
 }
 
 impl BetterGit for Repository {
@@ -121,7 +184,7 @@ impl BetterGit for Repository {
         Ok(self.diff_tree_to_tree(Some(p_tree), Some(c_tree), None)?)
     }
 
-    fn diffs(&self, objects: &Vec<Object>) -> GroupedBetterDiffs {
+    fn diffs(&self, objects: &Vec<Object>, file_filters: &FileFilteringOpt) -> GroupedBetterDiffs {
         let mut diffs = GroupedBetterDiffs::new();
         let rcs: Vec<Rc<BetterCommit>> = objects.iter()
             .map(|o| o.as_commit().expect("not a commit"))
@@ -156,32 +219,35 @@ impl BetterGit for Repository {
                         .map(|p| p.to_str().unwrap())
                         .unwrap_or("<unknown>")
                         .to_string();
-                    let old_file = get_rc(old_file);
-                    b_diff.old_files.push(old_file);
-                    let new_file = d.new_file().path()
-                        .map(|p| p.to_str().unwrap())
-                        .unwrap_or("<unknown>")
-                        .to_string();
-                    let new_file = get_rc(new_file);
-                    b_diff.new_files.push(new_file);
+                    if file_filters.matches(&old_file) {
+                        let old_file = get_rc(old_file);
+                        b_diff.old_files.push(old_file);
+                        let new_file = d.new_file().path()
+                            .map(|p| p.to_str().unwrap())
+                            .unwrap_or("<unknown>")
+                            .to_string();
+                        let new_file = get_rc(new_file);
+                        b_diff.new_files.push(new_file);
+                    }
                 });
             diffs.insert(b_diff.child.when.clone(), b_diff);
         }
         diffs
     }
 
-    fn mine_diffs(&self, filters: CommitFilteringOpt) -> Result<GroupedBetterDiffs> {
-        let objs = self.mine_objects(&filters)?;
+    fn mine_diffs(&self, options: &BetterGitOpt) -> Result<GroupedBetterDiffs> {
+        let objs = self.mine_objects(&options.commit_filters)?;
         debug!("Found {} total commits", objs.len());
-        Ok(self.diffs(&objs))
+        Ok(self.diffs(&objs, &options.file_filters))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
     use chrono::{TimeZone, Utc};
     use git2::Repository;
-    use crate::bettergit::{BetterGit, CommitFilteringOpt};
+    use crate::bettergit::{BetterGit, BetterGitOpt, CommitFilteringOpt, FileFilteringOpt};
     use crate::git::DateGrouping;
 
     #[test]
@@ -194,7 +260,7 @@ mod tests {
             branch: "main".to_string(),
             since: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
             until: Utc.with_ymd_and_hms(2020, 12, 31, 23, 59, 59).unwrap(),
-            binning: DateGrouping::None,
+            binning: DateGrouping::None
         };
         let commits = repo.mine_objects(&filters).expect("cannot mine");
         assert_eq!(77, commits.len());
@@ -215,13 +281,25 @@ mod tests {
             Ok(r) => r,
             Err(_) => Repository::open("/tmp/microservices-demo").expect("cannot open nor clone repository")
         };
-        let filters = CommitFilteringOpt {
-            branch: "main".to_string(),
-            since: Utc.with_ymd_and_hms(2020, 12, 8, 17, 14, 0).unwrap(),
-            until: Utc.with_ymd_and_hms(2020, 12, 31, 23, 59, 59).unwrap(),
-            binning: DateGrouping::None,
+        let opts = BetterGitOpt {
+            commit_filters: CommitFilteringOpt {
+                branch: "main".to_string(),
+                since: Utc.with_ymd_and_hms(2020, 12, 8, 17, 14, 0).unwrap(),
+                until: Utc.with_ymd_and_hms(2020, 12, 31, 23, 59, 59).unwrap(),
+                binning: DateGrouping::None,
+            },
+            file_filters: FileFilteringOpt::accept_all()
         };
-        let diffs = repo.mine_diffs(filters).expect("cannot diff");
-        println!("{}", diffs.len())
+        let objs = repo.mine_objects(&opts.commit_filters).expect("cannot list commits");
+        let diffs = repo.diffs(&objs, &opts.file_filters);
+        let matched_files = diffs.values().into_iter().map(|d| d.new_files.clone()).flatten().collect::<Vec<Rc<String>>>();
+        assert_eq!(46, matched_files.len());
+
+        let cs_only = FileFilteringOpt::include_only(&[".*cs$"]);
+        let diffs = repo.diffs(&objs, &cs_only);
+        let matched_files = diffs.values().into_iter().map(|d| d.new_files.clone()).flatten().collect::<Vec<Rc<String>>>();
+        matched_files.iter().for_each(|f| {
+            assert!(f.ends_with(".cs"), "file doesn't end with '.cs': {}", f)
+        })
     }
 }
