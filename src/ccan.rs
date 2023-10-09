@@ -2,8 +2,8 @@ use anyhow::{bail, Result};
 use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
 use crate::ccan::AnalysisStatus::{Completed, Failed, Initialized, Running};
-use crate::cochanges::CoChanges;
-use crate::git::{DateGrouping, SimpleGit};
+use crate::cc::{CoChanges, CoChangesOpt};
+use crate::bettergit::{BetterGit, BetterGitOpt};
 
 pub enum AnalysisStatus {
     Initialized,
@@ -20,14 +20,12 @@ pub struct Analysis {
     pub duration: Duration,
     pub status: AnalysisStatus,
 }
+
 #[derive(Clone)]
 pub struct Options {
     pub repository: String,
-    pub branch: String,
-    pub changes_min: u32,
-    pub freq_min: u32,
-    pub binning: DateGrouping,
-    pub max_commits: u32
+    pub git_opts: BetterGitOpt,
+    pub cc_opts: CoChangesOpt,
 }
 
 impl Analysis {
@@ -55,10 +53,10 @@ impl Analysis {
 
     fn execute(opt: &Options) -> Result<CoChanges> {
         let repo = Repository::open(&opt.repository)?;
-        let diffs = repo.diffs_max(opt.branch.as_str(), &opt.binning, opt.max_commits as usize)?;
+        let diffs = repo.mine_diffs(&opt.git_opts)?;
         let mut cc = CoChanges::from_diffs(diffs);
-        cc.calculate_cc_freq(opt.changes_min);
-        cc.filter_freqs(opt.freq_min);
+        cc.calculate_cc_freq(opt.cc_opts.changes_min);
+        cc.filter_freqs(opt.cc_opts.freq_min);
         cc.calculate_cc_prob();
         Ok(cc)
     }

@@ -1,68 +1,28 @@
-use std::collections::HashMap;
-use std::hash::Hash;
 use std::ops::{AddAssign, Div, Sub};
-
+use std::rc::Rc;
 use chrono::{DateTime, Utc};
 use log::debug;
 use ndarray::{Array2, ArrayView1, AssignElem};
 use crate::bettergit::GroupedBetterDiffs;
+use crate::matrix::NamedMatrix;
 
-use crate::git::Diffs;
-
-#[derive(Debug)]
-pub struct NamedMatrix<R, C>
-    where
-        R: PartialEq + Eq + Hash + Clone,
-        C: PartialEq + Eq + Hash + Clone {
-    pub matrix: Array2<f64>,
-    pub row_names: Vec<R>,
-    pub col_names: Vec<C>,
-    row_index: HashMap<R, usize>,
-    col_index: HashMap<C, usize>,
-    pub row_dimname: Option<String>,
-    pub col_dimname: Option<String>,
+#[derive(Clone)]
+pub struct CoChangesOpt {
+    pub changes_min: u32,
+    pub freq_min: u32,
 }
-
-impl<R: PartialEq + Eq + Hash + Clone, C: PartialEq + Eq + Hash + Clone> NamedMatrix<R, C> {
-    pub fn new(row_names: Vec<R>, col_names: Vec<C>,
-               row_dimname: Option<&str>, col_dimname: Option<&str>) -> NamedMatrix<R, C> {
-        let n = row_names.len();
-        let m = col_names.len();
-        let row_index: HashMap<R, usize> = row_names.iter().enumerate().map(|(i, e)| ((*e).clone(), i)).collect();
-        let col_index: HashMap<C, usize> = col_names.iter().enumerate().map(|(i, e)| ((*e).clone(), i)).collect();
-        NamedMatrix {
-            matrix: Array2::<f64>::zeros((n, m)),
-            row_names,
-            col_names,
-            row_index,
-            col_index,
-            row_dimname: row_dimname.map(String::from),
-            col_dimname: col_dimname.map(String::from)
-        }
-    }
-
-    pub fn index_of_col(&self, col: &C) -> Option<usize> {
-        self.col_index.get(col).map(|u| *u)
-    }
-
-    pub fn index_of_row(&self, row: &R) -> Option<usize> {
-        self.row_index.get(row).map(|u| *u)
-    }
-}
-
 pub struct CoChanges {
-    pub changes: NamedMatrix<String, DateTime<Utc>>,
-    pub cc_freq: Option<NamedMatrix<String, String>>,
-    pub cc_prob: Option<NamedMatrix<String, String>>
+    pub changes: NamedMatrix<Rc<String>, DateTime<Utc>>,
+    pub cc_freq: Option<NamedMatrix<Rc<String>, Rc<String>>>,
+    pub cc_prob: Option<NamedMatrix<Rc<String>, Rc<String>>>
 }
 
 impl CoChanges {
-
-    pub fn from_diffs(diffs: Diffs) -> CoChanges {
+    pub fn from_diffs(diffs: GroupedBetterDiffs) -> CoChanges {
         let mut rows = diffs.values()
+            .map(|d| d.new_files.iter().map(|f| f.clone()))
             .flatten()
-            .map(|d| d.new_file.clone())
-            .collect::<Vec<String>>();
+            .collect::<Vec<Rc<String>>>();
         rows.sort();
         rows.dedup();
         let mut cols = diffs.keys()
@@ -70,39 +30,40 @@ impl CoChanges {
             .collect::<Vec<DateTime<Utc>>>();
         cols.sort();
         cols.dedup();
-        let mut changes = NamedMatrix::new(
+        let changes = NamedMatrix::new(
             rows,
             cols,
             Some("files"),
             Some("dates")
         );
-        CoChanges::calculate_changes(diffs, &mut changes);
-        CoChanges { changes, cc_freq: None, cc_prob: None }
+        let mut cc = CoChanges { changes, cc_freq: None, cc_prob: None };
+        cc.calculate_changes(diffs);
+        cc
     }
 
-    pub fn calculate_changes(diffs: Diffs, changes: &mut NamedMatrix<String, DateTime<Utc>>) {
-        for (dates, diffs_in_commit) in diffs { 
-            for diff in diffs_in_commit {
-                let file = diff.new_file;
-                let row = changes.index_of_row(&file);
-                let col = changes.index_of_col(&dates);
+    fn calculate_changes(&mut self, diffs: GroupedBetterDiffs) {
+        for (dates, diffs_in_commit) in diffs {
+            let col = self.changes.index_of_col(&dates);
+            for new_file in diffs_in_commit.new_files {
+                let row = self.changes.index_of_row(&new_file);
                 match (row, col) {
                     (Some(r), Some(c)) => {
-                        changes.matrix[[r, c]] += 1.0
+                        self.changes.matrix[[r, c]] += 1.0
                     }
                     (_, _) => ()
                 }
             }
         }
     }
+
     pub fn calculate_cc_freq(&mut self, min_change_freq: u32) {
         debug!("Calculating co-changes from {} commits and {} files", self.changes.col_names.len(), self.changes.row_names.len());
         let min_change_freq = min_change_freq as f64;
-        let mut filt_row_names = Vec::<String>::new();
+        let mut filt_row_names = Vec::<Rc<String>>::new();
         for row in self.changes.row_names.iter() {
             if let Some(i) = self.changes.index_of_row(row) {
                 if self.changes.matrix.row(i).sum() >= min_change_freq {
-                    filt_row_names.push((*row).clone());
+                    filt_row_names.push(row.clone());
                 }
             }
         }
@@ -138,7 +99,7 @@ impl CoChanges {
 
     pub fn calculate_cc_prob(&mut self) {
         if let Some(cc_freq) = &self.cc_freq {
-            let mut cc_prob = NamedMatrix::<String, String>::new(
+            let mut cc_prob = NamedMatrix::<Rc<String>, Rc<String>>::new(
                 cc_freq.row_names.clone(),
                 cc_freq.row_names.clone(),
                 Some("impacted"),
@@ -188,69 +149,15 @@ impl CoChanges {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::fs::{File, read_to_string};
-    use std::ops::Sub;
     use std::str::FromStr;
-
-    use chrono::{DateTime, Days, Utc};
+    use chrono::{DateTime, Utc};
     use csv::ReaderBuilder;
-    use git2::Repository;
-    use ndarray::{array, Array2, AssignElem, s};
+    use ndarray::{Array2, AssignElem};
     use ndarray_csv::Array2Reader;
-
-    use crate::cochanges::{CoChanges, NamedMatrix};
-    use crate::git::{Commit, DateGrouping, Diff, Diffs, SimpleGit};
-
-    #[test]
-    fn test_matrix() {
-        let rows = vec!["file1", "file2", "file3"].into_iter().map(String::from).collect::<Vec<_>>();
-        let cols = vec!["v1", "v2", "v3"].into_iter().map(String::from).collect::<Vec<_>>();
-        let m = NamedMatrix::new(rows, cols, None, None);
-        println!("{:?}", m)
-    }
-
-    #[test]
-    fn test_cochanges() {
-        let repo = Repository::open("/tmp/microservices-demo").unwrap();
-        let branch = "main";
-        let diffs = repo.diffs(branch, &DateGrouping::None).expect("cannot get diffs");
-
-        let changes = CoChanges::from_diffs(diffs);
-
-        assert!(changes.changes.matrix.nrows() > 0);
-        assert!(changes.changes.matrix.ncols() > 0);
-
-        println!("{}", changes.changes.matrix.slice(s![0..10, 0..10]))
-    }
-
-    #[test]
-    fn test_changes_calc() {
-        let c1 = Commit::new(String::from("sha_abc1"), String::from("author1"), String::from("author1@email.com"), String::from("message1"), Utc::now().sub(Days::new(3)).timestamp());
-        let c2 = Commit::new(String::from("sha_abc2"), String::from("author2"), String::from("author2@email.com"), String::from("message2"), Utc::now().sub(Days::new(2)).timestamp());
-        let c3 = Commit::new(String::from("sha_abc3"), String::from("author3"), String::from("author3@email.com"), String::from("message3"), Utc::now().sub(Days::new(1)).timestamp());
-        let d1 = Diff { parent: c1.clone(), child: c2.clone(), old_file: String::from("my/file.txt"), new_file: String::from("my/file.txt") };
-        let d2 = Diff { parent: c1.clone(), child: c2.clone(), old_file: String::from("my/file2.txt"), new_file: String::from("my/file2.txt") };
-        let d3 = Diff { parent: c1.clone(), child: c2.clone(), old_file: String::from("my/file3.txt"), new_file: String::from("my/file3.txt") };
-        let d4 = Diff { parent: c2.clone(), child: c3.clone(), old_file: String::from("my/file.txt"), new_file: String::from("my/file.txt") };
-        let d5 = Diff { parent: c2.clone(), child: c3.clone(), old_file: String::from("my/file3.txt"), new_file: String::from("my/file3.txt") };
-        let mut diffs = Diffs::new();
-        diffs.insert(c2.when, vec![d1, d2, d3].clone());
-        diffs.insert(c3.when, vec![d4, d5].clone());
-
-        let mut cc = CoChanges::from_diffs(diffs);
-        let mut expected = Array2::<f64>::ones((3, 2));
-        expected[[1, 1]] = 0f64;
-        assert_eq!(expected, cc.changes.matrix);
-        cc.calculate_cc_freq(0);
-        let expected = array![[0.0, 1.7071067811865475, 3.7071067811865475], [2.0, 0.0, 2.0], [3.7071067811865475, 1.7071067811865475, 0.0]];
-        assert_eq!(expected, cc.cc_freq.as_ref().unwrap().matrix);
-        cc.calculate_cc_prob();
-        let expected = array![[0.0, 0.5, 0.6495597372397182], [0.3504402627602818, 0.0, 0.3504402627602818], [0.6495597372397182, 0.5, 0.0]];
-        assert_eq!(expected, cc.cc_prob.as_ref().unwrap().matrix);
-    }
+    use crate::cc::CoChanges;
 
 
     #[test]

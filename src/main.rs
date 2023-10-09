@@ -1,18 +1,20 @@
 use std::path::Path;
 
 use anyhow::{bail, Result};
+use chrono::{NaiveDate, TimeZone, Utc};
 use clap::{arg, Parser};
 use log::{info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
+use crate::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
+use crate::cc::CoChangesOpt;
 use crate::ccan::{Analysis, Options};
-use crate::git::DateGrouping;
 use crate::output::{create_path, mkdir, write_arr, write_matrix};
 
-mod git;
 mod ccan;
-mod cochanges;
+mod matrix;
 mod output;
 mod bettergit;
+mod cc;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -25,8 +27,14 @@ struct Args {
     changes_min: u32,
     #[arg(short, long, default_value = "5")]
     freq_min: u32,
-    #[arg(short, long, default_value = "10000")]
-    max_commits: u32,
+    #[arg(long, default_value = "9999-1-1")]
+    until: NaiveDate,
+    #[arg(long, default_value = "1900-1-1")]
+    since: NaiveDate,
+    #[arg(long, default_value = ".*")]
+    include_regex: String,
+    #[arg(long, default_value = r".*(json|lock|sh|proto|bat|md|txt|yaml|yml|Dockerfile|mod|sum|.DS_Store|.gitignore)$",)]
+    exclude_regex: String,
     #[arg(short, long, default_value = "none")]
     date_binning: DateGrouping,
     #[arg(short, long, required = true)]
@@ -45,14 +53,27 @@ fn run(args: Args) -> Result<()> {
     let cc_files_file = &create_path(&[output_dir.as_str(), format!("cc_files-d{d}-c{c}-f{f}.csv").as_str()]);
 
     info!("Started analysing {}", args.repository.as_str());
-    let mut analysis = Analysis::new(Options {
-        repository: args.repository,
-        branch: args.branch,
-        binning: args.date_binning,
-        freq_min: args.freq_min,
-        changes_min: args.changes_min,
-        max_commits: args.max_commits
-    });
+    let since = Utc::from_utc_datetime(&Utc, &args.since.and_hms_opt(0, 0, 0).unwrap());
+    let until = Utc::from_utc_datetime(&Utc, &args.until.and_hms_opt(23, 59, 59).unwrap());
+    let file_filters = FileFilteringOpt::new(&[args.exclude_regex.as_str()], &[args.include_regex.as_str()]);
+    let mut analysis = Analysis::new(
+        Options {
+            repository: args.repository,
+            cc_opts: CoChangesOpt {
+                freq_min: args.freq_min,
+                changes_min: args.changes_min
+            },
+            git_opts: BetterGitOpt {
+                file_filters,
+                commit_filters: CommitFilteringOpt {
+                    branch: args.branch,
+                    binning: args.date_binning,
+                    since,
+                    until,
+                }
+            }
+        }
+    );
     match analysis.run() {
         Ok(cc) => {
             info!("Writing output to {}", output_dir.as_str());

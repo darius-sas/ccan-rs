@@ -1,13 +1,13 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::ops::Sub;
 use std::rc::Rc;
 use git2::{Commit, Diff, Object, ObjectType, Repository, Sort};
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Days, TimeZone, Utc};
+use chrono::{Datelike, DateTime, Days, TimeZone, Utc};
 use itertools::Itertools;
 use log::debug;
-use regex::{Error, Regex};
-use crate::git::DateGrouping;
+use regex::{Error, Regex, RegexBuilder};
 
 #[derive(Debug, Clone, Hash)]
 pub struct BetterCommit {
@@ -23,11 +23,13 @@ pub struct BetterDiff {
     pub new_files: Vec<Rc<String>>,
 }
 
+#[derive(Clone)]
 pub struct BetterGitOpt {
     pub commit_filters: CommitFilteringOpt,
     pub file_filters: FileFilteringOpt
 }
 
+#[derive(Clone)]
 pub struct CommitFilteringOpt {
     pub branch: String,
     pub until: DateTime<Utc>,
@@ -35,6 +37,7 @@ pub struct CommitFilteringOpt {
     pub binning: DateGrouping,
 }
 
+#[derive(Clone)]
 pub struct FileFilteringOpt {
     pub exclude_paths: Regex,
     pub include_paths: Regex
@@ -62,17 +65,6 @@ impl BetterDiff {
     }
 }
 
-impl CommitFilteringOpt {
-    fn new(branch: String, since: Days, binning: DateGrouping) -> CommitFilteringOpt {
-        CommitFilteringOpt {
-            branch,
-            until: Utc::now(),
-            since: Utc::now().sub(since),
-            binning
-        }
-    }
-}
-
 impl FileFilteringOpt {
     pub fn new(exclude_patterns: &[&str], include_patterns: &[&str]) -> FileFilteringOpt {
         FileFilteringOpt {
@@ -85,31 +77,23 @@ impl FileFilteringOpt {
 
     fn vec_to_regex(regex_vec: &[&str]) -> std::result::Result<Regex, Error> {
         match regex_vec.len() {
-            0 => Regex::new(r".*"),
-            1 => Regex::new(regex_vec[0]),
+            0 => RegexBuilder::new(r".*"),
+            1 => RegexBuilder::new(regex_vec[0]),
             _ => {
                 let mut regex_str = regex_vec.join("|").to_owned();
                 regex_str.insert(0, '(');
                 regex_str.push(')');
-                Regex::new(regex_str.as_str())
+                RegexBuilder::new(regex_str.as_str())
             }
-        }
+        }.case_insensitive(true).build()
     }
 
     pub fn accept_all() -> FileFilteringOpt {
         FileFilteringOpt::new(&[r"a^"], &[r".*"])
     }
 
-    pub fn accept_none() -> FileFilteringOpt {
-        FileFilteringOpt::new(&[r".*"], &[r"a^"])
-    }
-
     pub fn include_only(include_patterns: &[&str]) -> FileFilteringOpt {
         FileFilteringOpt::new(&[r"a^"], include_patterns)
-    }
-
-    pub fn exclude_only(exclude_patterns: &[&str]) -> FileFilteringOpt {
-        FileFilteringOpt::new(exclude_patterns, &[r".*"])
     }
 
     pub fn exclude(&self, path: &String) -> bool {
@@ -125,7 +109,7 @@ impl FileFilteringOpt {
     }
 }
 
-trait BetterGit {
+pub trait BetterGit {
     fn mine_objects(&self, filters: &CommitFilteringOpt) -> Result<Vec<Object>>;
     fn sample_commits<'repo>(objects: Vec<Object<'repo>>, binning: &DateGrouping) -> Vec<Object<'repo>>;
 
@@ -242,13 +226,49 @@ impl BetterGit for Repository {
     }
 }
 
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum DateGrouping {
+    None,
+    Daily,
+    Weekly,
+    Monthly,
+}
+
+impl Display for DateGrouping {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DateGrouping::None => "none",
+            DateGrouping::Daily => "daily",
+            DateGrouping::Weekly => "weekly",
+            DateGrouping::Monthly => "monthly"
+        };
+        write!(f, "{s}")
+    }
+}
+impl DateGrouping {
+
+    pub fn get_group(&self, d: &DateTime<Utc>) -> DateTime<Utc> {
+        match self {
+            DateGrouping::None => d.clone(),
+            DateGrouping::Daily => {
+                Utc.with_ymd_and_hms(d.year(), d.month(), d.day(), 0, 0, 0).unwrap()
+            },
+            DateGrouping::Weekly => {
+                Utc.with_ymd_and_hms(d.year(), d.month(), d.day(), 0, 0, 0).unwrap().sub(Days::new(d.weekday().num_days_from_monday() as u64))
+            },
+            DateGrouping::Monthly => {
+                Utc.with_ymd_and_hms(d.year(), d.month(), 1, 0, 0, 0).unwrap()
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
     use chrono::{TimeZone, Utc};
     use git2::Repository;
-    use crate::bettergit::{BetterGit, BetterGitOpt, CommitFilteringOpt, FileFilteringOpt};
-    use crate::git::DateGrouping;
+    use crate::bettergit::{BetterGit, BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
 
     #[test]
     fn test_filtering() {

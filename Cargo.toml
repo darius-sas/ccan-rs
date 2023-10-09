@@ -1,6 +1,6 @@
 [package]
 name = "ccan-rs"
-version = "1.1.0"
+version = "1.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,6 +16,6 @@ itertools = "0.11.0"
 log = "0.4.20"
 ndarray = "0.15.6"
 ndarray-csv = "0.5.2"
-serde = "1.0.188"
+serde = { version = "1.0.188", features = ["rc"] }
 simple_logger = "4.2.0"
 regex = "1.9.6"
