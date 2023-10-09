@@ -57,7 +57,7 @@ impl CoChanges {
     }
 
     pub fn calculate_cc_freq(&mut self, min_change_freq: u32) {
-        debug!("Calculating co-changes from {} commits and {} files", self.changes.col_names.len(), self.changes.row_names.len());
+        debug!("Initiating co-change analysis for {} commits and {} files", self.changes.col_names.len(), self.changes.row_names.len());
         let min_change_freq = min_change_freq as f64;
         let mut filt_row_names = Vec::<Rc<String>>::new();
         for row in self.changes.row_names.iter() {

@@ -17,28 +17,30 @@ mod bettergit;
 mod cc;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = "Mine file co-changes from a Git repository.")]
 struct Args {
-    #[arg(short, long, required = true)]
+    #[arg(short, long, required = true, help = "The git repository")]
     repository: String,
-    #[arg(short, long, required = true)]
+    #[arg(short, long, required = true, help = "The branch to mine commits from")]
     branch: String,
-    #[arg(short, long, default_value = "5")]
+    #[arg(short, long, default_value = "5", help = "Ignore files with fewer total changes than given")]
     changes_min: u32,
-    #[arg(short, long, default_value = "5")]
+    #[arg(short, long, default_value = "5", help = "Remove file pairs with co-change frequency lower than given")]
     freq_min: u32,
-    #[arg(long, default_value = "9999-1-1")]
+    #[arg(long, default_value = "9999-1-1", help = "Select commits until given date (YYYY-MM-DD)")]
     until: NaiveDate,
-    #[arg(long, default_value = "1900-1-1")]
+    #[arg(long, default_value = "1900-1-1", help = "Select commits after given date (YYYY-MM-DD)")]
     since: NaiveDate,
-    #[arg(long, default_value = ".*")]
-    include_regex: String,
-    #[arg(long, default_value = r".*(json|lock|sh|proto|bat|md|txt|yaml|yml|Dockerfile|mod|sum|.DS_Store|.gitignore)$",)]
-    exclude_regex: String,
-    #[arg(short, long, default_value = "none")]
+    #[arg(short, long, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower.")]
     date_binning: DateGrouping,
-    #[arg(short, long, required = true)]
+    #[arg(long, default_value = ".*", help = "Regex to include matching files (case insensitive)")]
+    include_regex: String,
+    #[arg(long, default_value = r".*(json|lock|sh|proto|bat|md|txt|yaml|yml|Dockerfile|mod|sum|.DS_Store|.gitignore)$", help = "Regex to exclude matching files (case insensitive)")]
+    exclude_regex: String,
+    #[arg(short, long, required = true, help = "Directory to write output files to")]
     output_dir: String,
+    #[arg(short, long, default_value = "Debug", help = "Logging level [possible values: Off, Error, Warn, Info, Debug, Trace]")]
+    log_level: LevelFilter,
 }
 
 fn run(args: Args) -> Result<()> {
@@ -99,7 +101,7 @@ fn run(args: Args) -> Result<()> {
 fn main() {
     let args = Args::parse();
     SimpleLogger::new()
-        .with_level(LevelFilter::Debug)
+        .with_level(args.log_level)
         .init().unwrap();
     match run(args) {
         Err(e) => {
