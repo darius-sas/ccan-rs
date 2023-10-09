@@ -42,6 +42,7 @@ impl CoChanges {
     }
 
     fn calculate_changes(&mut self, diffs: GroupedBetterDiffs) {
+        debug!("Calculating changes");
         for (dates, diffs_in_commit) in diffs {
             let col = self.changes.index_of_col(&dates);
             for new_file in diffs_in_commit.new_files {
@@ -76,6 +77,7 @@ impl CoChanges {
             Some("changed"));
         debug!("Calculating dates distance");
         let dates_dist = CoChanges::dates_distance(&self.changes.col_names, |x| x.assign_elem(x.sqrt()));
+        debug!("Calculating co-change coefficient");
         for i in 0..n {
             let row_i = self.changes.matrix.row(i);
             for j in 0..n {
