@@ -226,7 +226,7 @@ impl BetterGit for Repository {
     }
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum DateGrouping {
     None,
     Daily,

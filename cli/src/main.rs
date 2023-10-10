@@ -1,3 +1,15 @@
+extern crate anyhow;
+extern crate log;
+extern crate chrono;
+extern crate clap;
+extern crate simple_logger;
+extern crate ccan;
+extern crate itertools;
+extern crate regex;
+extern crate ndarray;
+extern crate serde;
+mod output;
+
 use std::path::Path;
 
 use anyhow::{bail, Result};
@@ -5,16 +17,10 @@ use chrono::{NaiveDate, TimeZone, Utc};
 use clap::{arg, Parser};
 use log::{info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
-use crate::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
-use crate::cc::CoChangesOpt;
-use crate::ccan::{Analysis, Options};
-use crate::output::{create_path, mkdir, write_arr, write_matrix};
-
-mod ccan;
-mod matrix;
-mod output;
-mod bettergit;
-mod cc;
+use ccan::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
+use ccan::cc::CoChangesOpt;
+use ccan::{Analysis, Options};
+use output::{create_path, mkdir, write_arr, write_matrix};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = "Mine file co-changes from a Git repository.")]

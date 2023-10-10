@@ -1,21 +1,19 @@
-[package]
+[workspace]
+members = ["ccan", "cli"]
+
+[workspace.package]
 name = "ccan-rs"
 version = "1.5.0"
 edition = "2021"
+description = "Git co-change analysis"
+authors = ["Darius Sas <darius.sas@outlook.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+# https://stackoverflow.com/questions/36604010/how-can-i-build-multiple-binaries-with-cargo
+[workspace.dependencies]
 anyhow = "1.0.75"
 chrono = "0.4.31"
-clap = { version = "4.4.6", features = ["derive"] }
-csv = "1.3.0"
-delegate = "0.10.0"
-git2 = "0.18.1"
-itertools = "0.11.0"
 log = "0.4.20"
-ndarray = "0.15.6"
-ndarray-csv = "0.5.2"
 serde = { version = "1.0.188", features = ["rc"] }
-simple_logger = "4.2.0"
+itertools = "0.11.0"
 regex = "1.9.6"

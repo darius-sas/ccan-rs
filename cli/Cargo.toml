@@ -1,0 +1,19 @@
+[package]
+name = "cli"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+dependencies.workspace = true
+
+[dependencies]
+ccan = { path = "../ccan" }
+anyhow = { workspace = true, features = [] }
+chrono = { workspace = true }
+log = { workspace = true }
+itertools = { workspace = true }
+serde = { workspace = true }
+regex = { workspace = true }
+clap = { version = "4.4.6", features = ["derive"] }
+csv = "1.3.0"
+simple_logger = "4.2.0"
+ndarray = "0.15.6"
