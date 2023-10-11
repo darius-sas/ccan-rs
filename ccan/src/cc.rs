@@ -153,25 +153,28 @@ impl CoChanges {
 
 #[cfg(test)]
 mod tests {
+    extern crate csv;
+    extern crate ndarray_csv;
+
     use std::fs::{File, read_to_string};
     use std::str::FromStr;
     use chrono::{DateTime, Utc};
-    use csv::ReaderBuilder;
+    use self::csv::ReaderBuilder;
     use ndarray::{Array2, AssignElem};
-    use ndarray_csv::Array2Reader;
+    use self::ndarray_csv::Array2Reader;
     use crate::cc::CoChanges;
 
 
     #[test]
     fn test_dates_dist() {
-        let dates: Vec<DateTime<Utc>> = read_to_string("test-data/sampled_dates.csv").unwrap()
+        let dates: Vec<DateTime<Utc>> = read_to_string("../test-data/sampled_dates.csv").unwrap()
             .lines()
             .map(|s| i64::from_str(s).unwrap())
             .map(|i| DateTime::<Utc>::from_timestamp(i, 0).unwrap())
             .collect();
 
         let mut actual = CoChanges::dates_distance(&dates, |f| f.assign_elem(f.sqrt()));
-        let file = File::open("test-data/expected_dates_distance.csv").unwrap();
+        let file = File::open("../test-data/expected_dates_distance.csv").unwrap();
         let mut reader = ReaderBuilder::new()
             .has_headers(false)
             .delimiter(b' ')
@@ -185,13 +188,13 @@ mod tests {
     }
     #[test]
     fn test_cc_coeff() {
-        let dates: Vec<DateTime<Utc>> = read_to_string("test-data/sampled_dates.csv").unwrap()
+        let dates: Vec<DateTime<Utc>> = read_to_string("../test-data/sampled_dates.csv").unwrap()
             .lines()
             .map(|s| i64::from_str(s).unwrap())
             .map(|i| DateTime::<Utc>::from_timestamp(i, 0).unwrap())
             .collect();
         let dates_distance = CoChanges::dates_distance(&dates, |f| f.assign_elem(f.sqrt()));
-        let file = File::open("test-data/changes.csv").unwrap();
+        let file = File::open("../test-data/changes.csv").unwrap();
         let mut reader = ReaderBuilder::new()
             .has_headers(false)
             .delimiter(b' ')
@@ -201,7 +204,7 @@ mod tests {
 
         let cc_coeff = CoChanges::cc_coefficient(&changes.row(0), &changes.row(1), &dates_distance);
 
-        let expected = read_to_string("test-data/expected_coeff.csv").unwrap();
+        let expected = read_to_string("../test-data/expected_coeff.csv").unwrap();
         let expected = f64::from_str(expected.trim()).unwrap();
 
         assert!((cc_coeff - expected).abs() < 1e-6)

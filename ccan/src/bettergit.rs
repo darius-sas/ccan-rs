@@ -11,8 +11,6 @@ use itertools::Itertools;
 use log::debug;
 use regex::{Error, Regex, RegexBuilder};
 
-use bettergit::DateGrouping::{Daily, Monthly, Weekly};
-
 #[derive(Debug, Clone, Hash)]
 pub struct BetterCommit {
     pub sha1: String,
@@ -244,9 +242,9 @@ impl FromStr for DateGrouping {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "none" => Ok(DateGrouping::None),
-            "daily" => Ok(Daily),
-            "weekly" => Ok(Weekly),
-            "monthly" => Ok(Monthly),
+            "daily" => Ok(DateGrouping::Daily),
+            "weekly" => Ok(DateGrouping::Weekly),
+            "monthly" => Ok(DateGrouping::Monthly),
             _ => bail!("cannot parse DateGrouping from {}", s)
         }
     }
@@ -340,6 +338,6 @@ mod tests {
         let matched_files = diffs.values().into_iter().map(|d| d.new_files.clone()).flatten().collect::<Vec<Rc<String>>>();
         matched_files.iter().for_each(|f| {
             assert!(f.ends_with(".cs"), "file doesn't end with '.cs': {}", f)
-        })
+        });
     }
 }
