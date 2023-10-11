@@ -2,9 +2,7 @@ name: Build, Tests, and Upload
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    tags: ["*"]
 
 env:
   CARGO_TERM_COLOR: always
