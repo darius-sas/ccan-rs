@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "ccan"
-version = "1.5.0"
+version = "1.5.5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -118,8 +118,25 @@ dependencies = [
  "itertools",
  "log",
  "ndarray",
+ "regex",
+]
+
+[[package]]
+name = "ccan-cli"
+version = "1.5.5"
+dependencies = [
+ "anyhow",
+ "ccan",
+ "chrono",
+ "clap",
+ "csv",
+ "itertools",
+ "log",
+ "ndarray",
  "ndarray-csv",
  "regex",
+ "serde",
+ "simple_logger",
 ]
 
 [[package]]
@@ -181,23 +198,6 @@ name = "clap_lex"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
-
-[[package]]
-name = "cli"
-version = "1.5.0"
-dependencies = [
- "anyhow",
- "ccan",
- "chrono",
- "clap",
- "csv",
- "itertools",
- "log",
- "ndarray",
- "regex",
- "serde",
- "simple_logger",
-]
 
 [[package]]
 name = "colorchoice"

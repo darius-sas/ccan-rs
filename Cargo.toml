@@ -1,12 +1,11 @@
 [workspace]
-members = ["ccan", "cli"]
+members = ["ccan", "ccan-cli"]
 
 [workspace.package]
-name = "ccan-rs"
-version = "1.5.0"
+version = "1.5.5"
 edition = "2021"
 description = "Git co-change analysis"
-authors = ["Darius Sas <darius.sas@outlook.com"]
+authors = ["Darius Sas <darius.sas@outlook.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 # https://stackoverflow.com/questions/36604010/how-can-i-build-multiple-binaries-with-cargo

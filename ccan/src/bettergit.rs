@@ -2,12 +2,16 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Sub;
 use std::rc::Rc;
-use git2::{Commit, Diff, Object, ObjectType, Repository, Sort};
-use anyhow::{anyhow, Result};
+use std::str::FromStr;
+
+use anyhow::{anyhow, bail, Result};
 use chrono::{Datelike, DateTime, Days, TimeZone, Utc};
+use git2::{Commit, Diff, Object, ObjectType, Repository, Sort};
 use itertools::Itertools;
 use log::debug;
 use regex::{Error, Regex, RegexBuilder};
+
+use bettergit::DateGrouping::{Daily, Monthly, Weekly};
 
 #[derive(Debug, Clone, Hash)]
 pub struct BetterCommit {
@@ -234,6 +238,20 @@ pub enum DateGrouping {
     Monthly,
 }
 
+impl FromStr for DateGrouping {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "none" => Ok(DateGrouping::None),
+            "daily" => Ok(Daily),
+            "weekly" => Ok(Weekly),
+            "monthly" => Ok(Monthly),
+            _ => bail!("cannot parse DateGrouping from {}", s)
+        }
+    }
+}
+
 impl Display for DateGrouping {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
@@ -266,8 +284,10 @@ impl DateGrouping {
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
+
     use chrono::{TimeZone, Utc};
     use git2::Repository;
+
     use crate::bettergit::{BetterGit, BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
 
     #[test]

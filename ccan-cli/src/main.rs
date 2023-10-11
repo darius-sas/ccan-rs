@@ -8,9 +8,12 @@ extern crate itertools;
 extern crate regex;
 extern crate ndarray;
 extern crate serde;
+extern crate csv;
+extern crate ndarray_csv;
 mod output;
 
 use std::path::Path;
+use std::str::FromStr;
 
 use anyhow::{bail, Result};
 use chrono::{NaiveDate, TimeZone, Utc};
@@ -23,7 +26,10 @@ use ccan::{Analysis, Options};
 use output::{create_path, mkdir, write_arr, write_matrix};
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = "Mine file co-changes from a Git repository.")]
+#[command(author, version, about, long_about = " Mine file co-changes from a Git repository.")]
+#[command(
+    help_template = "{about-section} Version: {version} \n by {author} \n {usage-heading} {usage} \n {all-args} {tab}"
+)]
 struct Args {
     #[arg(short, long, required = true, help = "The git repository")]
     repository: String,
@@ -37,7 +43,7 @@ struct Args {
     until: NaiveDate,
     #[arg(long, default_value = "1900-1-1", help = "Select commits after given date (YYYY-MM-DD)")]
     since: NaiveDate,
-    #[arg(short, long, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower.")]
+    #[arg(short, long, value_enum, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower. [possible values: none, daily, weekly, monthly]", value_parser = DateGrouping::from_str)]
     date_binning: DateGrouping,
     #[arg(long, default_value = ".*", help = "Regex to include matching files (case insensitive)")]
     include_regex: String,
