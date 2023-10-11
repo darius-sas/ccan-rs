@@ -290,9 +290,9 @@ mod tests {
 
     #[test]
     fn test_filtering() {
-        let repo = match Repository::clone("https://github.com/GoogleCloudPlatform/microservices-demo", "/tmp/microservices-demo") {
+        let repo = match Repository::clone("https://github.com/GoogleCloudPlatform/microservices-demo", "../test-data/microservices-demo") {
             Ok(r) => r,
-            Err(_) => Repository::open("/tmp/microservices-demo").expect("cannot open nor clone repository")
+            Err(_) => Repository::open("../test-data/microservices-demo").expect("cannot open nor clone repository")
         };
         let filters = CommitFilteringOpt {
             branch: "main".to_string(),
@@ -315,9 +315,9 @@ mod tests {
 
     #[test]
     fn test_diffs(){
-        let repo = match Repository::clone("https://github.com/GoogleCloudPlatform/microservices-demo", "/tmp/microservices-demo") {
+        let repo = match Repository::clone("https://github.com/GoogleCloudPlatform/microservices-demo", "../test-data/microservices-demo") {
             Ok(r) => r,
-            Err(_) => Repository::open("/tmp/microservices-demo").expect("cannot open nor clone repository")
+            Err(_) => Repository::open("../test-data/microservices-demo").expect("cannot open nor clone repository")
         };
         let opts = BetterGitOpt {
             commit_filters: CommitFilteringOpt {
