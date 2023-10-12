@@ -21,7 +21,7 @@ use clap::{arg, Parser};
 use log::{info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
 use ccan::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
-use ccan::changes::CoChangesOpt;
+use ccan::ccan::CoChangesOpt;
 use ccan::{Analysis, Options};
 use output::{create_path, mkdir, write_arr, write_matrix};
 
@@ -91,14 +91,10 @@ fn run(args: Args) -> Result<()> {
     match analysis.run() {
         Ok(cc) => {
             info!("Writing output to {}", output_dir.as_str());
-            if let Some(cc_freqs) = &cc.cc_freq {
-                mkdir(&output_dir)?;
-                write_matrix(cc_freqs_file, &cc_freqs.matrix)?;
-                write_arr(cc_files_file, &cc_freqs.col_names)?
-            }
-            if let Some(cc_probs) = &cc.cc_prob {
-                write_matrix(cc_probs_file, &cc_probs.matrix)?
-            }
+            mkdir(&output_dir)?;
+            write_matrix(cc_freqs_file, &cc.freqs.matrix)?;
+            write_arr(cc_files_file, &cc.freqs.col_names)?;
+            write_matrix(cc_probs_file, &cc.probs.matrix)?;
             info!("Completed in {}ms", analysis.duration.num_milliseconds());
             Ok(())
         }

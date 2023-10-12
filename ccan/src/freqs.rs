@@ -1,6 +1,7 @@
 use std::ops::{AddAssign, Div, Sub};
 use std::rc::Rc;
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use log::debug;
 use ndarray::{Array2, ArrayView1, AssignElem};
 use changes::Changes;
@@ -82,6 +83,45 @@ impl CCFreqsCalculator for NaiveFreqs {
     }
 }
 
+pub struct BayesFreqs;
+
+fn co_change(v1: ArrayView1<f64>, v2: ArrayView1<f64>) -> f64 {
+    v1.iter().zip_eq(v2).filter(|(x, y)| **x > 0.0 && **y > 0.0).count() as f64
+}
+
+impl CCFreqsCalculator for BayesFreqs {
+    fn calculate_freqs(&self, changes: &Changes, opts: &CoChangesOpt) -> CCMatrix {
+        let changes = &changes.changes;
+        let min_change_freq = opts.changes_min as f64;
+        let mut filt_row_names = Vec::<Rc<String>>::new();
+        for row in changes.row_names.iter() {
+            if let Some(i) = changes.index_of_row(row) {
+                if changes.matrix.row(i).sum() >= min_change_freq {
+                    filt_row_names.push(row.clone());
+                }
+            }
+        }
+
+        let n = filt_row_names.len();
+        let mut cc_freq = CCMatrix::new(
+            filt_row_names.clone(),
+            filt_row_names.clone(),
+            Some("impacted"),
+            Some("changed"));
+        debug!("Calculating dates distance");
+        debug!("Calculating co-change coefficient");
+        for i in 0..n {
+            let row_i = changes.matrix.row(i);
+            for j in 0..n {
+                if i == j { continue }
+                let row_j = changes.matrix.row(j);
+                cc_freq.matrix[[i, j]] = co_change(row_i, row_j);
+            }
+        }
+        NaiveFreqs::filter_freqs(&mut cc_freq, opts.freq_min);
+        cc_freq
+    }
+}
 
 #[cfg(test)]
 mod tests {

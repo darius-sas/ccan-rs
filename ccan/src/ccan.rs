@@ -10,13 +10,11 @@ pub type CCMatrix = NamedMatrix<Rc<String>, Rc<String>>;
 pub struct CoChangesOpt {
     pub changes_min: u32,
     pub freq_min: u32,
-    pub freqs_calculator: &'a dyn CCFreqsCalculator,
-    pub probs_calculator: &'a dyn CCProbsCalculator
 }
 
 pub struct CoChanges {
-    pub cc_freqs: CCMatrix,
-    pub cc_probs: CCMatrix
+    pub freqs: CCMatrix,
+    pub probs: CCMatrix
 }
 
 pub trait CCFreqsCalculator {
@@ -29,7 +27,8 @@ pub trait CCProbsCalculator {
 
 pub struct CCCalculator<'a>{
     pub changes: &'a Changes,
-    pub opts: CoChangesOpt<'a>
+    pub freqs_calculator: &'a dyn CCFreqsCalculator,
+    pub probs_calculator: &'a dyn CCProbsCalculator
 }
 
 impl<'a> CCCalculator<'a> {
@@ -38,7 +37,7 @@ impl<'a> CCCalculator<'a> {
         let cc_freqs = self.freqs_calculator.calculate_freqs(self.changes, opts);
         debug!("Calculating probabilities");
         let cc_probs = self.probs_calculator.calculate_probs(self.changes, &cc_freqs, opts);
-        CoChanges { cc_freqs, cc_probs }
+        CoChanges { freqs: cc_freqs, probs: cc_probs }
     }
 }
 

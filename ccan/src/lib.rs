@@ -18,8 +18,8 @@ use anyhow::{bail, Result};
 use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
 use ccan::{CCCalculator, CoChanges, CoChangesOpt};
-use freqs::NaiveFreqs;
-use probs::NaiveProbs;
+use freqs::{BayesFreqs, NaiveFreqs};
+use probs::{BayesProbs, NaiveProbs};
 use crate::changes::{Changes};
 use crate::bettergit::{BetterGit, BetterGitOpt};
 
@@ -75,8 +75,8 @@ impl Analysis {
         let cc = Changes::from_diffs(diffs);
         let calculator = CCCalculator{
             changes: &cc,
-            freqs_calculator: &NaiveFreqs,
-            probs_calculator: &NaiveProbs
+            freqs_calculator: &BayesFreqs,
+            probs_calculator: &BayesProbs
         };
         Ok(calculator.calculate(&opt.cc_opts))
     }
