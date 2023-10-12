@@ -21,7 +21,7 @@ use clap::{arg, Parser};
 use log::{info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
 use ccan::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
-use ccan::cc::CoChangesOpt;
+use ccan::changes::CoChangesOpt;
 use ccan::{Analysis, Options};
 use output::{create_path, mkdir, write_arr, write_matrix};
 

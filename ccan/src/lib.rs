@@ -1,7 +1,10 @@
 
 pub mod bettergit;
-pub mod cc;
+pub mod changes;
 pub mod matrix;
+pub mod ccan;
+pub mod freqs;
+pub mod probs;
 
 extern crate anyhow;
 extern crate log;
@@ -14,7 +17,10 @@ extern crate ndarray;
 use anyhow::{bail, Result};
 use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
-use crate::cc::{CoChanges, CoChangesOpt};
+use ccan::{CCCalculator, CoChanges, CoChangesOpt};
+use freqs::NaiveFreqs;
+use probs::NaiveProbs;
+use crate::changes::{Changes};
 use crate::bettergit::{BetterGit, BetterGitOpt};
 
 pub enum AnalysisStatus {
@@ -66,10 +72,12 @@ impl Analysis {
     fn execute(opt: &Options) -> Result<CoChanges> {
         let repo = Repository::open(&opt.repository)?;
         let diffs = repo.mine_diffs(&opt.git_opts)?;
-        let mut cc = CoChanges::from_diffs(diffs);
-        cc.calculate_cc_freq(opt.cc_opts.changes_min);
-        cc.filter_freqs(opt.cc_opts.freq_min);
-        cc.calculate_cc_prob();
-        Ok(cc)
+        let cc = Changes::from_diffs(diffs);
+        let calculator = CCCalculator{
+            changes: &cc,
+            freqs_calculator: &NaiveFreqs,
+            probs_calculator: &NaiveProbs
+        };
+        Ok(calculator.calculate(&opt.cc_opts))
     }
 }
