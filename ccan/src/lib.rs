@@ -1,3 +1,19 @@
+extern crate anyhow;
+extern crate chrono;
+extern crate git2;
+extern crate itertools;
+extern crate log;
+extern crate ndarray;
+extern crate regex;
+
+use anyhow::{bail, Result};
+use chrono::{DateTime, Duration, Utc};
+use git2::Repository;
+
+use ccan::{CoChanges, CoChangesOpt};
+
+use crate::bettergit::{BetterGit, BetterGitOpt};
+use crate::changes::Changes;
 
 pub mod bettergit;
 pub mod changes;
@@ -5,21 +21,6 @@ pub mod matrix;
 pub mod ccan;
 pub mod freqs;
 pub mod probs;
-
-extern crate anyhow;
-extern crate log;
-extern crate chrono;
-extern crate git2;
-extern crate itertools;
-extern crate regex;
-extern crate ndarray;
-
-use anyhow::{bail, Result};
-use chrono::{DateTime, Duration, Utc};
-use git2::Repository;
-use ccan::{CCCalculator, CoChanges, CoChangesOpt};
-use crate::changes::{Changes};
-use crate::bettergit::{BetterGit, BetterGitOpt};
 
 pub enum AnalysisStatus {
     Initialized,
@@ -70,10 +71,7 @@ impl Analysis {
     fn execute(opt: &Options) -> Result<CoChanges> {
         let repo = Repository::open(&opt.repository)?;
         let diffs = repo.mine_diffs(&opt.git_opts)?;
-        let cc = Changes::from_diffs(diffs);
-        let calculator = CCCalculator{
-            changes: &cc,
-        };
-        Ok(calculator.calculate(&opt.cc_opts))
+        let changes = Changes::from_diffs(diffs);
+        Ok(CoChanges::from_changes(&changes, &opt.cc_opts))
     }
 }

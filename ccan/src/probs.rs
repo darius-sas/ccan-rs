@@ -1,9 +1,8 @@
-use changes::Changes;
 use ccan::{CCMatrix, CCProbsCalculator, CoChangesOpt};
 
 pub struct NaiveProbs;
 impl CCProbsCalculator for NaiveProbs {
-    fn calculate_probs(&self, _: &Changes, freqs: &CCMatrix, _: &CoChangesOpt) -> CCMatrix {
+    fn calculate_probs(&self, freqs: &CCMatrix, _: &CoChangesOpt) -> CCMatrix {
         let mut cc_prob = CCMatrix::new(
             freqs.row_names.clone(),
             freqs.row_names.clone(),
@@ -23,7 +22,7 @@ impl CCProbsCalculator for NaiveProbs {
 
 pub struct BayesProbs;
 impl CCProbsCalculator for BayesProbs {
-    fn calculate_probs(&self, _changes: &Changes, freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
+    fn calculate_probs(&self, freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
         let mut cc_probs = CCMatrix::new(
             freqs.row_names.clone(),
             freqs.row_names.clone(),

@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use std::str::FromStr;
 use anyhow::{bail, Error};
@@ -24,10 +25,11 @@ pub enum CCAlgorithm {
     Mixed
 }
 
-struct Calculators {
+pub struct Calculators {
     freq_calc: Box<dyn CCFreqsCalculator>,
     prob_calc: Box<dyn CCProbsCalculator>
 }
+
 impl CoChangesOpt {
     fn get_calculators(&self) -> Calculators {
         match self.algorithm {
@@ -50,6 +52,16 @@ impl FromStr for CCAlgorithm {
     }
 }
 
+impl Display for CCAlgorithm {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            CCAlgorithm::Naive => "naive",
+            CCAlgorithm::Bayes => "bayes",
+            CCAlgorithm::Mixed => "mixed"
+        })
+    }
+}
+
 pub struct CoChanges {
     pub freqs: CCMatrix,
     pub probs: CCMatrix
@@ -60,21 +72,18 @@ pub trait CCFreqsCalculator {
 }
 
 pub trait CCProbsCalculator {
-    fn calculate_probs(&self, changes: &Changes, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix;
+    fn calculate_probs(&self, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix;
 }
 
-pub struct CCCalculator<'a>{
-    pub changes: &'a Changes
-}
-
-impl<'a> CCCalculator<'a> {
-    pub fn calculate(&self, opts: &CoChangesOpt) -> CoChanges {
+impl CoChanges {
+    pub fn from_changes(changes: &Changes, opts: &CoChangesOpt) -> CoChanges {
         debug!("Calculating frequencies");
         let calculators = opts.get_calculators();
-        let cc_freqs = calculators.freq_calc.calculate_freqs(self.changes, opts);
+        let cc_freqs = calculators.freq_calc.calculate_freqs(changes, opts);
         debug!("Calculating probabilities");
-        let cc_probs = calculators.prob_calc.calculate_probs(self.changes, &cc_freqs, opts);
+        let cc_probs = calculators.prob_calc.calculate_probs(&cc_freqs, opts);
         CoChanges { freqs: cc_freqs, probs: cc_probs }
     }
 }
+
 

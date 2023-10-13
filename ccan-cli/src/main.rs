@@ -64,9 +64,10 @@ fn run(args: Args) -> Result<()> {
     let d = &args.date_binning;
     let c = args.changes_min;
     let f = args.changes_min;
-    let cc_freqs_file =  &create_path(&[output_dir.as_str(), format!("cc_freqs-d{d}-c{c}-f{f}.csv").as_str()]);
-    let cc_probs_file = &create_path(&[output_dir.as_str(), format!("cc_probs-d{d}-c{c}-f{f}.csv").as_str()]);
-    let cc_files_file = &create_path(&[output_dir.as_str(), format!("cc_files-d{d}-c{c}-f{f}.csv").as_str()]);
+    let a = &args.algorithm;
+    let cc_freqs_file =  &create_path(&[output_dir.as_str(), format!("cc_freqs-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
+    let cc_probs_file = &create_path(&[output_dir.as_str(), format!("cc_probs-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
+    let cc_files_file = &create_path(&[output_dir.as_str(), format!("cc_files-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
 
     info!("Started analysing {}", args.repository.as_str());
     let since = Utc::from_utc_datetime(&Utc, &args.since.and_hms_opt(0, 0, 0).unwrap());
