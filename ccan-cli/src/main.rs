@@ -21,7 +21,7 @@ use clap::{arg, Parser};
 use log::{info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
 use ccan::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
-use ccan::ccan::CoChangesOpt;
+use ccan::ccan::{CCAlgorithm, CoChangesOpt};
 use ccan::{Analysis, Options};
 use output::{create_path, mkdir, write_arr, write_matrix};
 
@@ -45,6 +45,8 @@ struct Args {
     since: NaiveDate,
     #[arg(short, long, value_enum, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower. [possible values: none, daily, weekly, monthly]", value_parser = DateGrouping::from_str)]
     date_binning: DateGrouping,
+    #[arg(short, long, value_enum, default_value = "none", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed]", value_parser = CCAlgorithm::from_str)]
+    algorithm: CCAlgorithm,
     #[arg(long, default_value = ".*", help = "Regex to include matching files (case insensitive)")]
     include_regex: String,
     #[arg(long, default_value = r".*(json|lock|sh|proto|bat|md|txt|yaml|yml|Dockerfile|mod|sum|.DS_Store|.gitignore)$", help = "Regex to exclude matching files (case insensitive)")]
@@ -75,7 +77,8 @@ fn run(args: Args) -> Result<()> {
             repository: args.repository,
             cc_opts: CoChangesOpt {
                 freq_min: args.freq_min,
-                changes_min: args.changes_min
+                changes_min: args.changes_min,
+                algorithm: args.algorithm
             },
             git_opts: BetterGitOpt {
                 file_filters,

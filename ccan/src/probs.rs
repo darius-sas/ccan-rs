@@ -23,22 +23,24 @@ impl CCProbsCalculator for NaiveProbs {
 
 pub struct BayesProbs;
 impl CCProbsCalculator for BayesProbs {
-    fn calculate_probs(&self, changes: &Changes, freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
+    fn calculate_probs(&self, _changes: &Changes, freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
         let mut cc_probs = CCMatrix::new(
             freqs.row_names.clone(),
             freqs.row_names.clone(),
             Some("posteriori"),
             Some("priori")
         );
-        for i in 0..cc_probs.matrix.nrows() {
+        let sum = freqs.matrix.sum();
+        if sum < 1e-6 { return cc_probs }
+
+        let intersect = freqs.matrix.mapv(|x| x / sum);
+        for i in 0..cc_probs.matrix.nrows(){
+            let evidence = intersect.row(i).sum();
+            if evidence < 1e-6 { continue }
             for j in 0..cc_probs.matrix.ncols() {
-                let prob_denom = changes.c_prob[j]; // TODO fix this
-                if prob_denom > 0.0 {
-                    cc_probs.matrix[[i, j]] = freqs.matrix[[i, j]] / prob_denom
-                }
+                cc_probs.matrix[[i, j]] = intersect[[i, j]] / evidence;
             }
         }
-
         return cc_probs;
     }
 }
