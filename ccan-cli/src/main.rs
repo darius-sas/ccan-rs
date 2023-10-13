@@ -45,7 +45,7 @@ struct Args {
     since: NaiveDate,
     #[arg(short, long, value_enum, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower. [possible values: none, daily, weekly, monthly]", value_parser = DateGrouping::from_str)]
     date_binning: DateGrouping,
-    #[arg(short, long, value_enum, default_value = "none", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed]", value_parser = CCAlgorithm::from_str)]
+    #[arg(short, long, value_enum, default_value = "bayes", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed]", value_parser = CCAlgorithm::from_str)]
     algorithm: CCAlgorithm,
     #[arg(long, default_value = ".*", help = "Regex to include matching files (case insensitive)")]
     include_regex: String,
