@@ -8,7 +8,7 @@ use crate::bettergit::GroupedBetterDiffs;
 use crate::matrix::NamedMatrix;
 
 pub struct Changes {
-    pub changes: NamedMatrix<Rc<String>, DateTime<Utc>>,
+    pub freqs: NamedMatrix<Rc<String>, DateTime<Utc>>,
     pub c_freq: Array1<i32>,
     pub c_prob: Array1<f64>
 }
@@ -35,7 +35,7 @@ impl Changes {
         let n = changes.matrix.nrows();
         let c_freq= Array1::zeros(n);
         let c_prob =  Array1::zeros(n);
-        let mut cc = Changes { changes, c_freq, c_prob };
+        let mut cc = Changes { freqs: changes, c_freq, c_prob };
         cc.calculate_changes(diffs);
         cc.calculate_c_freq_and_prob();
         cc
@@ -44,12 +44,12 @@ impl Changes {
     fn calculate_changes(&mut self, diffs: GroupedBetterDiffs) {
         debug!("Calculating changes");
         for (dates, diffs_in_commit) in diffs {
-            let col = self.changes.index_of_col(&dates);
+            let col = self.freqs.index_of_col(&dates);
             for new_file in diffs_in_commit.new_files {
-                let row = self.changes.index_of_row(&new_file);
+                let row = self.freqs.index_of_row(&new_file);
                 match (row, col) {
                     (Some(r), Some(c)) => {
-                        self.changes.matrix[[r, c]] += 1.0
+                        self.freqs.matrix[[r, c]] += 1.0
                     }
                     (_, _) => ()
                 }
@@ -58,9 +58,9 @@ impl Changes {
     }
 
     fn calculate_c_freq_and_prob(&mut self) {
-        let n = self.changes.matrix.nrows();
+        let n = self.freqs.matrix.nrows();
         for i in 0..n {
-            let r_sum = self.changes.matrix.row(i).sum();
+            let r_sum = self.freqs.matrix.row(i).sum();
             self.c_freq[i] = r_sum as i32;
             self.c_prob[i] = r_sum / (n as f64);
         }

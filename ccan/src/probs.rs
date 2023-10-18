@@ -46,8 +46,6 @@ impl CCProbsCalculator for BayesProbs {
 
 #[cfg(test)]
 mod tests {
-    use changes::Changes;
-
     #[test]
     fn test() {
     }

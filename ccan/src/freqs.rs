@@ -1,11 +1,13 @@
 use std::ops::{AddAssign, Div, Sub};
 use std::rc::Rc;
+
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::debug;
 use ndarray::{Array2, ArrayView1, AssignElem};
-use changes::Changes;
+
 use ccan::{CCFreqsCalculator, CCMatrix, CoChangesOpt};
+use changes::Changes;
 
 pub struct NaiveFreqs;
 impl NaiveFreqs {
@@ -49,7 +51,7 @@ impl NaiveFreqs {
 }
 impl CCFreqsCalculator for NaiveFreqs {
     fn calculate_freqs(&self, changes: &Changes, opts: &CoChangesOpt) -> CCMatrix {
-        let changes = &changes.changes;
+        let changes = &changes.freqs;
         debug!("Initiating co-change analysis for {} commits and {} files", changes.col_names.len(), changes.row_names.len());
         let min_change_freq = opts.changes_min as f64;
         let mut filt_row_names = Vec::<Rc<String>>::new();
@@ -91,7 +93,7 @@ fn co_change(v1: ArrayView1<f64>, v2: ArrayView1<f64>) -> f64 {
 
 impl CCFreqsCalculator for BayesFreqs {
     fn calculate_freqs(&self, changes: &Changes, opts: &CoChangesOpt) -> CCMatrix {
-        let changes = &changes.changes;
+        let changes = &changes.freqs;
         let min_change_freq = opts.changes_min as f64;
         let mut filt_row_names = Vec::<Rc<String>>::new();
         for row in changes.row_names.iter() {
@@ -130,10 +132,13 @@ mod tests {
 
     use std::fs::{File, read_to_string};
     use std::str::FromStr;
+
     use chrono::{DateTime, Utc};
-    use self::csv::ReaderBuilder;
     use ndarray::{Array2, AssignElem};
+
     use freqs::NaiveFreqs;
+
+    use self::csv::ReaderBuilder;
     use self::ndarray_csv::Array2Reader;
 
     #[test]

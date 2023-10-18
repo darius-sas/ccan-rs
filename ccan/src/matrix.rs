@@ -42,4 +42,11 @@ impl<R: PartialEq + Eq + Hash + Clone, C: PartialEq + Eq + Hash + Clone> NamedMa
     pub fn index_of_row(&self, row: &R) -> Option<usize> {
         self.row_index.get(row).map(|u| *u)
     }
+
+    pub fn slice_columns<'a, I>(&self, col_names: I) -> Vec<usize>
+    where I: Iterator<Item=C>
+    {
+        col_names.filter_map(|c| self.col_index.get(&c))
+            .map(|c|*c).collect()
+    }
 }
