@@ -17,7 +17,7 @@ use std::str::FromStr;
 use anyhow::{bail, Result};
 use chrono::{NaiveDate, TimeZone, Utc};
 use clap::{arg, Parser};
-use log::{info, LevelFilter, warn};
+use log::{error, info, LevelFilter, warn};
 use simple_logger::SimpleLogger;
 
 use ccan::{Analysis, Options};
@@ -48,7 +48,7 @@ struct Args {
     since: NaiveDate,
     #[arg(short, long, value_enum, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower. [possible values: none, daily, weekly, monthly]", value_parser = DateGrouping::from_str)]
     date_binning: DateGrouping,
-    #[arg(short, long, value_enum, default_value = "bayes", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed]", value_parser = CCAlgorithm::from_str)]
+    #[arg(short, long, value_enum, default_value = "naive", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed]", value_parser = CCAlgorithm::from_str)]
     algorithm: CCAlgorithm,
     #[arg(long, default_value = ".*", help = "Regex to include matching files (case insensitive)")]
     include_regex: String,
@@ -77,7 +77,7 @@ fn run(args: Args) -> Result<()> {
     let cc_freqs_file = &create_path(&[output_dir.as_str(), format!("cc_freqs-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
     let cc_probs_file = &create_path(&[output_dir.as_str(), format!("cc_probs-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
     let cc_files_file = &create_path(&[output_dir.as_str(), format!("cc_files-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
-    let c_data_file = &create_path(&[output_dir.as_str(), format!("c_data-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
+    let c_data_file = &create_path(&[output_dir.as_str(), format!("c_hist-a{a}-d{d}-c{c}-f{f}.csv").as_str()]);
 
     info!("Started analysing {}", args.repository.as_str());
     let since = Utc::from_utc_datetime(&Utc, &args.since.and_hms_opt(0, 0, 0).unwrap());
@@ -118,7 +118,8 @@ fn run(args: Args) -> Result<()> {
             write_arr(cc_files_file, &output.co_changes.freqs.col_names)?;
             write_matrix(cc_probs_file, &output.co_changes.probs.matrix)?;
             write_named_matrix(c_data_file, &output.changes.freqs)?;
-            info!("Completed in {}ms", analysis.duration.num_milliseconds());
+            println!("{}", &output.predictions);
+            info!("Completed in {}ms", (&analysis.duration).num_milliseconds());
             Ok(())
         }
         Err(e) => {
@@ -136,7 +137,7 @@ fn main() {
         .init().unwrap();
     match run(args) {
         Err(e) => {
-            info!("Error occurred: {}", e);
+            error!("Error occurred: {}", e);
         }
         _ => ()
     }

@@ -11,7 +11,7 @@ use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
 
 use ccan::{CoChanges, CoChangesOpt};
-use predict::{NaivePrediction, Prediction, PredictionOpt};
+use predict::{NaivePrediction, ChangeRippleProbabilities, PredictionOpt};
 
 use crate::bettergit::{BetterGit, BetterGitOpt};
 use crate::changes::Changes;
@@ -52,7 +52,7 @@ pub struct Options {
 pub struct AnalysisOutput {
     pub changes: Changes,
     pub co_changes: CoChanges,
-    pub predict: Vec<Prediction>
+    pub predictions: ChangeRippleProbabilities
 }
 
 impl Analysis {
@@ -83,11 +83,11 @@ impl Analysis {
         let diffs = repo.mine_diffs(&opt.git_opts)?;
         let changes = Changes::from_diffs(diffs);
         let co_changes = CoChanges::from_changes(&changes, &opt.cc_opts);
-        //let prediction = <NaivePrediction as predict::ChangePredictor>::predict0(&co_changes, &changes, &opt.pred_opts);
+        let predictions = <NaivePrediction as predict::ChangePredictor>::predict0(&co_changes, &changes, &opt.pred_opts);
         Ok(AnalysisOutput{
             changes,
             co_changes,
-            predict: Vec::new()
+            predictions
         })
     }
 }
