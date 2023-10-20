@@ -2,14 +2,14 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 use log::debug;
-use ndarray::ArrayView1;
+use ndarray::{Array1, ArrayView1};
 
 use crate::{
     changes::Changes,
     cochanges::{CCFreqsCalculator, CCMatrix, CCProbsCalculator, CoChangesOpt},
     model::Model,
     naive::NaiveModel,
-    predict::RippleChangePredictor,
+    predict::{CRVector, RippleChangePredictor},
 };
 
 fn co_change(v1: ArrayView1<f64>, v2: ArrayView1<f64>) -> f64 {
@@ -63,8 +63,8 @@ impl CCProbsCalculator for BayesianModel {
         let mut cc_probs = CCMatrix::new(
             freqs.row_names.clone(),
             freqs.row_names.clone(),
-            Some("posteriori"),
-            Some("priori"),
+            Some("impacted"),
+            Some("changing"),
         );
         let sum = freqs.matrix.sum();
         if sum < 1e-6 {
@@ -72,8 +72,15 @@ impl CCProbsCalculator for BayesianModel {
         }
 
         let intersect = freqs.matrix.mapv(|x| x / sum);
+        let evidence = intersect
+            .columns()
+            .into_iter()
+            .map(|col| col.sum())
+            .collect::<Array1<f64>>();
+        let evidence_sum = evidence.sum();
+        let evidence = evidence.mapv(|x| x / evidence_sum);
         for i in 0..cc_probs.matrix.nrows() {
-            let evidence = intersect.row(i).sum();
+            let evidence = evidence[i];
             if evidence < 1e-6 {
                 continue;
             }
@@ -90,8 +97,21 @@ impl RippleChangePredictor for BayesianModel {
         &self,
         cc: &crate::cochanges::CoChanges,
         changed_files: &Vec<String>,
-        opts: &crate::predict::PredictionOpt,
-    ) -> crate::predict::CRVector {
-        todo!()
+        _opt: &crate::predict::PredictionOpt,
+    ) -> CRVector {
+        let indices: Vec<usize> = changed_files
+            .clone()
+            .into_iter()
+            .filter_map(|c| cc.probs.index_of_col(&Rc::new(c)))
+            .collect();
+        let mut sum = Array1::<f64>::zeros(cc.probs.row_names.len());
+        for i in indices {
+            let c = cc.probs.matrix.column(i);
+            sum = sum + c;
+        }
+        sum.into_iter()
+            .enumerate()
+            .map(|(i, x)| (cc.probs.row_names[i].to_string(), x))
+            .collect()
     }
 }
