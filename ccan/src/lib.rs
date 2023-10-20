@@ -21,6 +21,7 @@ pub mod bettergit;
 pub mod ccan;
 pub mod changes;
 pub mod matrix;
+pub mod model;
 pub mod naive;
 pub mod predict;
 
@@ -92,7 +93,7 @@ impl Analysis {
         let diffs = repo.mine_diffs(&opt.git_opts)?;
         let changes = Changes::from_diffs(diffs);
         let co_changes = CoChanges::from_changes(&changes, &opt.cc_opts);
-        let predictions = RippleChangeProbabilities::from(&co_changes, &opt.pred_opts);
+        let predictions = RippleChangeProbabilities::from(&co_changes, &changes, &opt.pred_opts);
         Ok(AnalysisOutput {
             changes,
             co_changes,

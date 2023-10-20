@@ -7,16 +7,13 @@ use ndarray::s;
 use ccan::CoChanges;
 use changes::Changes;
 
+use crate::model::ModelTypes;
+
 #[derive(Clone)]
 pub struct PredictionOpt {
     pub since_changes: DateTime<Utc>,
     pub until_changes: DateTime<Utc>,
-}
-
-impl PredictionOpt {
-    pub fn get_model() -> Box<dyn RippleChangePredictor> {
-        todo!()
-    }
+    pub algorithm: ModelTypes,
 }
 
 pub type CRVector = Vec<(String, f64)>;
@@ -58,8 +55,8 @@ impl RippleChangeProbabilities {
             }
         }
 
-        let model = opt.get_model();
-        let ripples = model.predict(cc, changes, opt);
+        let model = opt.algorithm.get_model();
+        let ripples = model.predict(cc, &changing_files, opt);
         RippleChangeProbabilities {
             changing_files,
             ripples,
@@ -85,6 +82,10 @@ impl Display for RippleChangeProbabilities {
 }
 
 pub trait RippleChangePredictor {
-    fn predict(&self, cc: &CoChanges, changed_files: Vec<String>, opts: &PredictionOpt)
-        -> CRVector;
+    fn predict(
+        &self,
+        cc: &CoChanges,
+        changed_files: &Vec<String>,
+        opts: &PredictionOpt,
+    ) -> CRVector;
 }

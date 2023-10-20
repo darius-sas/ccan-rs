@@ -7,7 +7,9 @@ use ndarray::ArrayView1;
 use crate::{
     ccan::{CCFreqsCalculator, CCMatrix, CCProbsCalculator, CoChangesOpt},
     changes::Changes,
+    model::Model,
     naive::NaiveModel,
+    predict::RippleChangePredictor,
 };
 
 fn co_change(v1: ArrayView1<f64>, v2: ArrayView1<f64>) -> f64 {
@@ -17,7 +19,8 @@ fn co_change(v1: ArrayView1<f64>, v2: ArrayView1<f64>) -> f64 {
         .count() as f64
 }
 
-struct BayesianModel;
+pub struct BayesianModel;
+impl Model for BayesianModel {}
 impl CCFreqsCalculator for BayesianModel {
     fn calculate_freqs(&self, changes: &Changes, opts: &CoChangesOpt) -> CCMatrix {
         let changes = &changes.freqs;
@@ -79,5 +82,16 @@ impl CCProbsCalculator for BayesianModel {
             }
         }
         return cc_probs;
+    }
+}
+
+impl RippleChangePredictor for BayesianModel {
+    fn predict(
+        &self,
+        cc: &crate::ccan::CoChanges,
+        changed_files: &Vec<String>,
+        opts: &crate::predict::PredictionOpt,
+    ) -> crate::predict::CRVector {
+        todo!()
     }
 }

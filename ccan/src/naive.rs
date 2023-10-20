@@ -9,9 +9,11 @@ use ccan::{CCFreqsCalculator, CCMatrix, CoChangesOpt};
 use changes::Changes;
 
 use crate::ccan::{CCProbsCalculator, CoChanges};
+use crate::model::Model;
 use crate::predict::{CRVector, PredictionOpt, RippleChangePredictor};
 
 pub struct NaiveModel;
+impl Model for NaiveModel {}
 impl NaiveModel {
     pub fn dates_distance(
         dates: &Vec<DateTime<Utc>>,
@@ -126,7 +128,12 @@ impl CCProbsCalculator for NaiveModel {
 }
 
 impl RippleChangePredictor for NaiveModel {
-    fn predict(&self, cc: &CoChanges, changed_files: Vec<String>, opt: &PredictionOpt) -> CRVector {
+    fn predict(
+        &self,
+        cc: &CoChanges,
+        changed_files: &Vec<String>,
+        opt: &PredictionOpt,
+    ) -> CRVector {
         let indices: Vec<usize> = changed_files
             .clone()
             .into_iter()
