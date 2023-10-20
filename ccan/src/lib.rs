@@ -11,18 +11,17 @@ use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
 
 use ccan::{CoChanges, CoChangesOpt};
-use predict::{NaivePrediction, ChangeRippleProbabilities, PredictionOpt};
+use predict::{PredictionOpt, RippleChangeProbabilities};
 
 use crate::bettergit::{BetterGit, BetterGitOpt};
 use crate::changes::Changes;
 
-
+pub mod bayes;
 pub mod bettergit;
+pub mod ccan;
 pub mod changes;
 pub mod matrix;
-pub mod ccan;
-pub mod freqs;
-pub mod probs;
+pub mod naive;
 pub mod predict;
 
 pub enum AnalysisStatus {
@@ -31,6 +30,7 @@ pub enum AnalysisStatus {
     Completed,
     Failed,
 }
+
 pub struct Analysis {
     pub id: u64,
     pub opts: Options,
@@ -46,36 +46,45 @@ pub struct Options {
     pub repository: String,
     pub git_opts: BetterGitOpt,
     pub cc_opts: CoChangesOpt,
-    pub pred_opts: PredictionOpt
+    pub pred_opts: PredictionOpt,
 }
 
 pub struct AnalysisOutput {
     pub changes: Changes,
     pub co_changes: CoChanges,
-    pub predictions: ChangeRippleProbabilities
+    pub predictions: RippleChangeProbabilities,
 }
 
 impl Analysis {
     pub fn new(opts: Options) -> Analysis {
-        Analysis { id: 0, opts, output: None, start: None, end: None, duration: Duration::seconds(0), status: AnalysisStatus::Initialized }
+        Analysis {
+            id: 0,
+            opts,
+            output: None,
+            start: None,
+            end: None,
+            duration: Duration::seconds(0),
+            status: AnalysisStatus::Initialized,
+        }
     }
-    pub fn run(&mut self) -> Result<&AnalysisOutput>{
+
+    pub fn run(&mut self) -> Result<&AnalysisOutput> {
         self.status = AnalysisStatus::Running;
         self.start = Some(Utc::now());
         let result = Analysis::execute(&self.opts);
         self.end = Some(Utc::now());
         self.duration = self.end.unwrap() - self.start.unwrap();
         return match result {
-            Ok(cc) =>{
+            Ok(cc) => {
                 self.status = AnalysisStatus::Completed;
                 self.output = Some(cc);
                 Ok(self.output.as_ref().unwrap())
-            } ,
+            }
             Err(e) => {
                 self.status = AnalysisStatus::Failed;
                 bail!(e)
             }
-        }
+        };
     }
 
     fn execute(opt: &Options) -> Result<AnalysisOutput> {
@@ -83,11 +92,11 @@ impl Analysis {
         let diffs = repo.mine_diffs(&opt.git_opts)?;
         let changes = Changes::from_diffs(diffs);
         let co_changes = CoChanges::from_changes(&changes, &opt.cc_opts);
-        let predictions = <NaivePrediction as predict::ChangePredictor>::predict0(&co_changes, &changes, &opt.pred_opts);
-        Ok(AnalysisOutput{
+        let predictions = RippleChangeProbabilities::from(&co_changes, &opt.pred_opts);
+        Ok(AnalysisOutput {
             changes,
             co_changes,
-            predictions
+            predictions,
         })
     }
 }

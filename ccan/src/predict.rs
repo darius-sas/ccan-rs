@@ -1,9 +1,8 @@
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use ndarray::{Array1, s};
+use ndarray::s;
 
 use ccan::CoChanges;
 use changes::Changes;
@@ -14,24 +13,67 @@ pub struct PredictionOpt {
     pub until_changes: DateTime<Utc>,
 }
 
-pub struct ChangeRippleProbabilities {
-    pub changing_files: Vec<String>,
-    pub predictions: Vec<(String, f64)>
+impl PredictionOpt {
+    pub fn get_model() -> Box<dyn RippleChangePredictor> {
+        todo!()
+    }
 }
 
-impl ChangeRippleProbabilities {
-    fn new(changing_files: Vec<String>) -> ChangeRippleProbabilities {
-        ChangeRippleProbabilities {
-            predictions: Vec::new(),
-            changing_files: changing_files
+pub type CRVector = Vec<(String, f64)>;
+pub struct RippleChangeProbabilities {
+    pub changing_files: Vec<String>,
+    pub ripples: CRVector,
+}
+
+impl RippleChangeProbabilities {
+    fn new() -> RippleChangeProbabilities {
+        RippleChangeProbabilities {
+            ripples: Vec::new(),
+            changing_files: Vec::new(),
+        }
+    }
+
+    pub fn from(
+        cc: &CoChanges,
+        changes: &Changes,
+        opt: &PredictionOpt,
+    ) -> RippleChangeProbabilities {
+        let indices = changes
+            .freqs
+            .col_names
+            .iter()
+            .enumerate()
+            .filter(|(_i, d)| d.clone() >= &opt.since_changes && d.clone() <= &opt.until_changes)
+            .map(|(i, _d)| i)
+            .collect::<Vec<usize>>();
+        if indices.is_empty() {
+            return RippleChangeProbabilities::new();
+        }
+        let (start, end) = (indices[0], indices[indices.len() - 1]);
+        let mut changing_files = Vec::new();
+        for i in 0..changes.freqs.row_names.len() {
+            let x = changes.freqs.matrix.row(i).slice(s![start..end]).sum();
+            if x > 0.0 {
+                changing_files.push(changes.freqs.row_names[i].clone().to_string())
+            }
+        }
+
+        let model = opt.get_model();
+        let ripples = model.predict(cc, changes, opt);
+        RippleChangeProbabilities {
+            changing_files,
+            ripples,
         }
     }
 }
-impl Display for ChangeRippleProbabilities {
+
+impl Display for RippleChangeProbabilities {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Changing files in period: {:?}", &self.changing_files)?;
         writeln!(f, "Change Probability     File")?;
-        let sorted = self.predictions.iter()
+        let sorted = self
+            .ripples
+            .iter()
             .filter(|p| p.1 >= 1e-2)
             .sorted_by(|x, y| y.1.total_cmp(&x.1))
             .collect::<Vec<&(String, f64)>>();
@@ -41,47 +83,8 @@ impl Display for ChangeRippleProbabilities {
         Ok(())
     }
 }
-pub trait ChangePredictor {
-    fn predict0(cc: &CoChanges, changes: &Changes, opt: &PredictionOpt) -> ChangeRippleProbabilities {
-        let indices = changes.freqs.col_names.iter().enumerate()
-            .filter(|(_i, d)| d.clone() >= &opt.since_changes && d.clone() <= &opt.until_changes)
-            .map(|(i, _d)| i)
-            .collect::<Vec<usize>>();
-        if indices.is_empty() {
-            return ChangeRippleProbabilities::new(vec![]);
-        }
-        let (start, end) = (indices[0], indices[indices.len() - 1]);
-        let mut changed_files = Vec::new();
-        for i in 0..changes.freqs.row_names.len() {
-            let x = changes.freqs.matrix.row(i).slice(s![start..end]).sum();
-            if x > 0.0 {
-                changed_files.push(changes.freqs.row_names[i].clone().to_string())
-            }
-        }
-        Self::predict(cc, changed_files)
-    }
 
-    fn predict(cc: &CoChanges, changed_files: Vec<String>) -> ChangeRippleProbabilities;
-}
-
-pub struct NaivePrediction;
-impl ChangePredictor for NaivePrediction {
-    fn predict(cc: &CoChanges, changed_files: Vec<String>) -> ChangeRippleProbabilities {
-        let indices: Vec<usize> = changed_files.clone().into_iter()
-            .filter_map(|c| cc.probs.index_of_col(&Rc::new(c)))
-            .collect();
-        let mut sum = Array1::<f64>::zeros(cc.probs.row_names.len());
-        let n = (&indices).len() as f64;
-        for i in indices {
-            let c = cc.probs.matrix.column(i);
-            sum = sum + c;
-        }
-        sum = sum / n;
-        let mut predictions = ChangeRippleProbabilities::new(changed_files);
-        sum.into_iter().enumerate()
-            .map(|(i, x)| (cc.probs.row_names[i].to_string(), x))
-            .for_each(|p| predictions.predictions.push(p));
-
-        predictions
-    }
+pub trait RippleChangePredictor {
+    fn predict(&self, cc: &CoChanges, changed_files: Vec<String>, opts: &PredictionOpt)
+        -> CRVector;
 }

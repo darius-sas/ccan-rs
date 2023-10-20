@@ -6,9 +6,7 @@ use anyhow::{bail, Error};
 use log::debug;
 
 use changes::Changes;
-use freqs::{BayesFreqs, NaiveFreqs};
 use matrix::NamedMatrix;
-use probs::{BayesProbs, NaiveProbs};
 
 pub type CCMatrix = NamedMatrix<Rc<String>, Rc<String>>;
 
@@ -16,28 +14,24 @@ pub type CCMatrix = NamedMatrix<Rc<String>, Rc<String>>;
 pub struct CoChangesOpt {
     pub changes_min: u32,
     pub freq_min: u32,
-    pub algorithm: CCAlgorithm
+    pub algorithm: CCAlgorithm,
 }
 
 #[derive(Clone, Debug)]
 pub enum CCAlgorithm {
     Naive,
     Bayes,
-    Mixed
+    Mixed,
 }
 
 pub struct Calculators {
     freq_calc: Box<dyn CCFreqsCalculator>,
-    prob_calc: Box<dyn CCProbsCalculator>
+    prob_calc: Box<dyn CCProbsCalculator>,
 }
 
 impl CoChangesOpt {
     fn get_calculators(&self) -> Calculators {
-        match self.algorithm {
-            CCAlgorithm::Naive => Calculators { freq_calc: Box::new(NaiveFreqs), prob_calc: Box::new(NaiveProbs) },
-            CCAlgorithm::Bayes => Calculators { freq_calc: Box::new(BayesFreqs), prob_calc: Box::new(BayesProbs) },
-            CCAlgorithm::Mixed => Calculators { freq_calc: Box::new(NaiveFreqs), prob_calc: Box::new(BayesProbs) }
-        }
+        todo!()
     }
 }
 
@@ -48,24 +42,28 @@ impl FromStr for CCAlgorithm {
             "naive" => Ok(CCAlgorithm::Naive),
             "bayes" => Ok(CCAlgorithm::Bayes),
             "mixed" => Ok(CCAlgorithm::Mixed),
-            _ => bail!("cannot parse DateGrouping from {}", s)
+            _ => bail!("cannot parse DateGrouping from {}", s),
         }
     }
 }
 
 impl Display for CCAlgorithm {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            CCAlgorithm::Naive => "naive",
-            CCAlgorithm::Bayes => "bayes",
-            CCAlgorithm::Mixed => "mixed"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                CCAlgorithm::Naive => "naive",
+                CCAlgorithm::Bayes => "bayes",
+                CCAlgorithm::Mixed => "mixed",
+            }
+        )
     }
 }
 
 pub struct CoChanges {
     pub freqs: CCMatrix,
-    pub probs: CCMatrix
+    pub probs: CCMatrix,
 }
 
 pub trait CCFreqsCalculator {
@@ -83,8 +81,9 @@ impl CoChanges {
         let cc_freqs = calculators.freq_calc.calculate_freqs(changes, opts);
         debug!("Calculating probabilities");
         let cc_probs = calculators.prob_calc.calculate_probs(&cc_freqs, opts);
-        CoChanges { freqs: cc_freqs, probs: cc_probs }
+        CoChanges {
+            freqs: cc_freqs,
+            probs: cc_probs,
+        }
     }
 }
-
-
