@@ -101,7 +101,7 @@ struct Args {
     predict_since: NaiveDate,
     #[arg(
         long,
-        default_value_t = Utc::now().add(Days::new(60)).date_naive(),
+        default_value_t = Utc::now().add(Days::new(1)).date_naive(),
         help = "Predict changes based on files changed until the given date (YYYY-MM-DD)"
     )]
     predict_until: NaiveDate,
