@@ -114,3 +114,29 @@ impl RippleChangePredictor for BayesianModel {
             .collect()
     }
 }
+
+pub struct MixedModel;
+impl Model for MixedModel {}
+
+impl CCFreqsCalculator for MixedModel {
+    fn calculate_freqs(&self, changes: &Changes, opts: &CoChangesOpt) -> CCMatrix {
+        NaiveModel::calculate_freqs(&NaiveModel, changes, opts)
+    }
+}
+
+impl CCProbsCalculator for MixedModel {
+    fn calculate_probs(&self, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix {
+        BayesianModel::calculate_probs(&BayesianModel, freqs, opts)
+    }
+}
+
+impl RippleChangePredictor for MixedModel {
+    fn predict(
+        &self,
+        cc: &crate::cochanges::CoChanges,
+        changed_files: &Vec<String>,
+        opts: &crate::predict::PredictionOpt,
+    ) -> CRVector {
+        BayesianModel::predict(&BayesianModel, cc, changed_files, opts)
+    }
+}

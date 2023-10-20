@@ -6,7 +6,7 @@ use std::{
 use anyhow::{bail, Error};
 
 use crate::{
-    bayes::BayesianModel,
+    bayes::{BayesianModel, MixedModel},
     cochanges::{CCFreqsCalculator, CCProbsCalculator},
     naive::NaiveModel,
     predict::RippleChangePredictor,
@@ -26,7 +26,7 @@ impl ModelTypes {
         match self {
             ModelTypes::Naive => Box::new(NaiveModel),
             ModelTypes::Bayes => Box::new(BayesianModel),
-            ModelTypes::Mixed => Box::new(NaiveModel),
+            ModelTypes::Mixed => Box::new(MixedModel),
         }
     }
 }
