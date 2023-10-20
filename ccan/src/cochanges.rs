@@ -31,10 +31,17 @@ pub trait CCProbsCalculator {
 
 impl CoChanges {
     pub fn from_changes(changes: &Changes, opts: &CoChangesOpt) -> CoChanges {
-        debug!("Calculating frequencies");
+        debug!(
+            "Calculating frequency of changes for {} files in {} commits",
+            changes.freqs.row_names.len(),
+            changes.freqs.col_names.len()
+        );
         let model = opts.algorithm.get_model();
         let cc_freqs = model.calculate_freqs(changes, opts);
-        debug!("Calculating probabilities");
+        debug!(
+            "Calculating cochange probabilities for {} remaining files",
+            cc_freqs.row_names.len()
+        );
         let cc_probs = model.calculate_probs(&cc_freqs, opts);
         CoChanges {
             freqs: cc_freqs,

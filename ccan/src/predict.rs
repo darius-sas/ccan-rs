@@ -12,6 +12,7 @@ use crate::model::ModelTypes;
 
 #[derive(Clone)]
 pub struct PredictionOpt {
+    pub skip: bool,
     pub since_changes: DateTime<Utc>,
     pub until_changes: DateTime<Utc>,
     pub algorithm: ModelTypes,
@@ -36,6 +37,9 @@ impl RippleChangeProbabilities {
         changes: &Changes,
         opt: &PredictionOpt,
     ) -> RippleChangeProbabilities {
+        if opt.skip {
+            return RippleChangeProbabilities::new();
+        }
         let indices = changes
             .freqs
             .col_names
@@ -57,12 +61,20 @@ impl RippleChangeProbabilities {
         }
 
         let model = opt.algorithm.get_model();
-        debug!("Calculating ripple change probability {}", opt.algorithm);
+        debug!(
+            "Calculating ripple change probability from {} files using '{}' algorithm",
+            &changing_files.len(),
+            opt.algorithm
+        );
         let ripples = model.predict(cc, &changing_files, opt);
         RippleChangeProbabilities {
             changing_files,
             ripples,
         }
+    }
+
+    pub fn get_probabilities(&self) -> Vec<f64> {
+        self.ripples.iter().map(|r| r.1).collect()
     }
 }
 

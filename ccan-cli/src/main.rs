@@ -11,12 +11,13 @@ extern crate regex;
 extern crate serde;
 extern crate simple_logger;
 
+use std::ops::{Add, Sub};
 use std::path::Path;
 use std::str::FromStr;
 
 use anyhow::{bail, Result};
 use ccan::model::ModelTypes;
-use chrono::{NaiveDate, TimeZone, Utc};
+use chrono::{Days, NaiveDate, TimeZone, Utc};
 use clap::{arg, Parser};
 use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
@@ -89,18 +90,18 @@ struct Args {
     #[arg(
         long,
         default_value = "false",
-        help = "Whether to perform a prediction using the output data"
+        help = "Do not perform a prediction using the cochange probability"
     )]
-    predict: bool,
+    skip_predict: bool,
     #[arg(
         long,
-        default_value = "1900-1-1",
+        default_value_t = Utc::now().sub(Days::new(30)).date_naive(),
         help = "Predict changes based on files changed since the given date (YYYY-MM-DD)"
     )]
     predict_since: NaiveDate,
     #[arg(
         long,
-        default_value = "9999-1-1",
+        default_value_t = Utc::now().add(Days::new(60)).date_naive(),
         help = "Predict changes based on files changed until the given date (YYYY-MM-DD)"
     )]
     predict_until: NaiveDate,
@@ -145,6 +146,10 @@ fn run(args: Args) -> Result<()> {
         output_dir.as_str(),
         format!("c_hist-a{a}-d{d}-c{c}-f{f}.csv").as_str(),
     ]);
+    let c_ripple_file = &create_path(&[
+        output_dir.as_str(),
+        format!("c_ripple-a{a}-d{d}-c{c}-f{f}.csv").as_str(),
+    ]);
 
     info!("Started analysing {}", args.repository.as_str());
     let since = Utc::from_utc_datetime(&Utc, &args.since.and_hms_opt(0, 0, 0).unwrap());
@@ -176,6 +181,7 @@ fn run(args: Args) -> Result<()> {
             },
         },
         pred_opts: PredictionOpt {
+            skip: args.skip_predict,
             since_changes: predict_since,
             until_changes: predict_until,
             algorithm: args.algorithm,
@@ -189,7 +195,10 @@ fn run(args: Args) -> Result<()> {
             write_arr(cc_files_file, &output.co_changes.freqs.col_names)?;
             write_matrix(cc_probs_file, &output.co_changes.probs.matrix)?;
             write_named_matrix(c_data_file, &output.changes.freqs)?;
-            println!("{}", &output.predictions);
+            if !args.skip_predict {
+                write_arr(c_ripple_file, &output.ripples.get_probabilities())?;
+                println!("{}", &output.ripples);
+            }
             info!("Completed in {}ms", (&analysis.duration).num_milliseconds());
             Ok(())
         }

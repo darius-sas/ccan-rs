@@ -66,11 +66,6 @@ impl NaiveModel {
 impl CCFreqsCalculator for NaiveModel {
     fn calculate_freqs(&self, changes: &Changes, opts: &CoChangesOpt) -> CCMatrix {
         let changes = &changes.freqs;
-        debug!(
-            "Initiating co-change analysis for {} commits and {} files",
-            changes.col_names.len(),
-            changes.row_names.len()
-        );
         let min_change_freq = opts.changes_min as f64;
         let mut filt_row_names = Vec::<Rc<String>>::new();
         for row in changes.row_names.iter() {
@@ -88,7 +83,10 @@ impl CCFreqsCalculator for NaiveModel {
             Some("impacted"),
             Some("changed"),
         );
-        debug!("Calculating dates distance");
+        debug!(
+            "Calculating dates distance ({} dates)",
+            changes.col_names.len()
+        );
         let dates_dist = Self::dates_distance(&changes.col_names, |x| x.assign_elem(x.sqrt()));
         debug!("Calculating co-change coefficient");
         for i in 0..n {

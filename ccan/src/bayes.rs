@@ -41,7 +41,6 @@ impl CCFreqsCalculator for BayesianModel {
             Some("impacted"),
             Some("changed"),
         );
-        debug!("Calculating dates distance");
         debug!("Calculating co-change coefficient");
         for i in 0..n {
             let row_i = changes.matrix.row(i);

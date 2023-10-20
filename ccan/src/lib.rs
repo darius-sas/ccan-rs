@@ -53,7 +53,7 @@ pub struct Options {
 pub struct AnalysisOutput {
     pub changes: Changes,
     pub co_changes: CoChanges,
-    pub predictions: RippleChangeProbabilities,
+    pub ripples: RippleChangeProbabilities,
 }
 
 impl Analysis {
@@ -97,7 +97,7 @@ impl Analysis {
         Ok(AnalysisOutput {
             changes,
             co_changes,
-            predictions,
+            ripples: predictions,
         })
     }
 }
