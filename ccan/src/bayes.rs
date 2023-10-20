@@ -71,21 +71,21 @@ impl CCProbsCalculator for BayesianModel {
             return cc_probs;
         }
 
-        let intersect = freqs.matrix.mapv(|x| x / sum);
+        let intersect = freqs.matrix.mapv(|x| x / sum); // P(impacted /\ changing)
         let evidence = intersect
             .columns()
             .into_iter()
             .map(|col| col.sum())
             .collect::<Array1<f64>>();
         let evidence_sum = evidence.sum();
-        let evidence = evidence.mapv(|x| x / evidence_sum);
+        let evidence = evidence.mapv(|x| x / evidence_sum); // P(changing)
         for i in 0..cc_probs.matrix.nrows() {
             let evidence = evidence[i];
             if evidence < 1e-6 {
                 continue;
             }
             for j in 0..cc_probs.matrix.ncols() {
-                cc_probs.matrix[[i, j]] = intersect[[i, j]] / evidence;
+                cc_probs.matrix[[i, j]] = intersect[[i, j]] / evidence; // P(impacted | changing)
             }
         }
         return cc_probs;
