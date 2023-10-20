@@ -5,8 +5,8 @@ use log::debug;
 use ndarray::ArrayView1;
 
 use crate::{
-    ccan::{CCFreqsCalculator, CCMatrix, CCProbsCalculator, CoChangesOpt},
     changes::Changes,
+    cochanges::{CCFreqsCalculator, CCMatrix, CCProbsCalculator, CoChangesOpt},
     model::Model,
     naive::NaiveModel,
     predict::RippleChangePredictor,
@@ -88,7 +88,7 @@ impl CCProbsCalculator for BayesianModel {
 impl RippleChangePredictor for BayesianModel {
     fn predict(
         &self,
-        cc: &crate::ccan::CoChanges,
+        cc: &crate::cochanges::CoChanges,
         changed_files: &Vec<String>,
         opts: &crate::predict::PredictionOpt,
     ) -> crate::predict::CRVector {

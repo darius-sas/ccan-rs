@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 use chrono::{DateTime, Duration, Utc};
 use git2::Repository;
 
-use ccan::{CoChanges, CoChangesOpt};
+use cochanges::{CoChanges, CoChangesOpt};
 use predict::{PredictionOpt, RippleChangeProbabilities};
 
 use crate::bettergit::{BetterGit, BetterGitOpt};
@@ -18,8 +18,8 @@ use crate::changes::Changes;
 
 pub mod bayes;
 pub mod bettergit;
-pub mod ccan;
 pub mod changes;
+pub mod cochanges;
 pub mod matrix;
 pub mod model;
 pub mod naive;

@@ -2,10 +2,11 @@ use std::fmt::{Display, Formatter};
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use log::debug;
 use ndarray::s;
 
-use ccan::CoChanges;
 use changes::Changes;
+use cochanges::CoChanges;
 
 use crate::model::ModelTypes;
 
@@ -56,6 +57,7 @@ impl RippleChangeProbabilities {
         }
 
         let model = opt.algorithm.get_model();
+        debug!("Calculating ripple change probability {}", opt.algorithm);
         let ripples = model.predict(cc, &changing_files, opt);
         RippleChangeProbabilities {
             changing_files,

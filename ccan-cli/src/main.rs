@@ -22,7 +22,7 @@ use log::{error, info, warn, LevelFilter};
 use simple_logger::SimpleLogger;
 
 use ccan::bettergit::{BetterGitOpt, CommitFilteringOpt, DateGrouping, FileFilteringOpt};
-use ccan::ccan::CoChangesOpt;
+use ccan::cochanges::CoChangesOpt;
 use ccan::predict::PredictionOpt;
 use ccan::{Analysis, Options};
 use output::{create_path, mkdir, write_arr, write_matrix, write_named_matrix};

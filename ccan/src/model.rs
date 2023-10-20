@@ -7,7 +7,7 @@ use anyhow::{bail, Error};
 
 use crate::{
     bayes::BayesianModel,
-    ccan::{CCFreqsCalculator, CCProbsCalculator},
+    cochanges::{CCFreqsCalculator, CCProbsCalculator},
     naive::NaiveModel,
     predict::RippleChangePredictor,
 };

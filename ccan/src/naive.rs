@@ -5,10 +5,9 @@ use chrono::{DateTime, Utc};
 use log::debug;
 use ndarray::{Array1, Array2, ArrayView1, AssignElem};
 
-use ccan::{CCFreqsCalculator, CCMatrix, CoChangesOpt};
 use changes::Changes;
 
-use crate::ccan::{CCProbsCalculator, CoChanges};
+use crate::cochanges::{CCFreqsCalculator, CCMatrix, CCProbsCalculator, CoChanges, CoChangesOpt};
 use crate::model::Model;
 use crate::predict::{CRVector, PredictionOpt, RippleChangePredictor};
 
@@ -132,7 +131,7 @@ impl RippleChangePredictor for NaiveModel {
         &self,
         cc: &CoChanges,
         changed_files: &Vec<String>,
-        opt: &PredictionOpt,
+        _opt: &PredictionOpt,
     ) -> CRVector {
         let indices: Vec<usize> = changed_files
             .clone()
