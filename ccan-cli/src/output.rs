@@ -1,7 +1,7 @@
-use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::{fs, path::Path};
 
 use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
@@ -12,6 +12,27 @@ use ndarray_csv::Array2Writer;
 use serde::Serialize;
 
 use ccan::matrix::NamedMatrix;
+
+use crate::args::Args;
+
+pub fn output_dir(args: &Args) -> String {
+    let basename = Path::new(args.repository.as_str())
+        .file_name()
+        .map_or_else(|| "repo", |p| p.to_str().unwrap());
+    create_path(&[args.output_dir.as_str(), "ccan-output", basename])
+}
+
+pub fn csv_file_name(args: &Args, prefix: &str) -> String {
+    let output_dir = output_dir(args);
+    let a = &args.algorithm;
+    let d = &args.date_binning;
+    let c = args.changes_min;
+    let f = args.freq_min;
+    create_path(&[
+        output_dir.as_str(),
+        format!("{prefix}-a{a}-d{d}-c{c}-f{f}.csv").as_str(),
+    ])
+}
 
 pub fn create_path(names: &[&str]) -> String {
     names
@@ -77,4 +98,3 @@ mod tests {
         println!("{}", path)
     }
 }
-
