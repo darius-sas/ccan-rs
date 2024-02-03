@@ -54,7 +54,7 @@ pub struct Args {
     pub since: NaiveDate,
     #[arg(short, long, value_enum, default_value = "none", help = "Binning strategy for commits. None is more precise, but slower. [possible values: none, daily, weekly, monthly]", value_parser = DateGrouping::from_str)]
     pub date_binning: DateGrouping,
-    #[arg(short, long, value_enum, default_value = "naive", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed]", value_parser = ModelTypes::from_str)]
+    #[arg(short, long, value_enum, default_value = "naive", help = "Impact probability calculation algorithm. [possible values: naive, bayes, mixed, nop]", value_parser = ModelTypes::from_str)]
     pub algorithm: ModelTypes,
     #[arg(
         long,

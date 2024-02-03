@@ -24,6 +24,7 @@ pub mod matrix;
 pub mod model;
 pub mod naive;
 pub mod predict;
+pub mod nop;
 
 pub enum AnalysisStatus {
     Initialized,

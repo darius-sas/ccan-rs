@@ -51,12 +51,18 @@ pub fn mkdir(output_dir: &String) -> Result<()> {
     }
 }
 pub fn write_matrix<A: Serialize>(path: &String, matrix: &Array2<A>) -> Result<()> {
+    if matrix.is_empty() {
+        return Ok(());
+    }
     let file = File::create(path)?;
     let mut writer = WriterBuilder::new().has_headers(false).from_writer(file);
     Ok(writer.serialize_array2(matrix)?)
 }
 
 pub fn write_arr<A: Serialize>(path: &String, matrix: &Vec<A>) -> Result<()> {
+    if matrix.is_empty() {
+        return Ok(());
+    }
     let file = File::create(path)?;
     let mut writer = WriterBuilder::new().has_headers(false).from_writer(file);
     Ok(writer.serialize(matrix)?)
@@ -66,6 +72,9 @@ pub fn write_named_matrix(
     path: &String,
     matrix: &NamedMatrix<Rc<String>, DateTime<Utc>>,
 ) -> Result<()> {
+    if matrix.matrix.is_empty() {
+        return Ok(());
+    }
     let file = File::create(path)?;
     let mut writer = WriterBuilder::new().has_headers(false).from_writer(file);
     let columns = matrix

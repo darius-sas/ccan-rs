@@ -6,10 +6,7 @@ use std::{
 use anyhow::{bail, Error};
 
 use crate::{
-    bayes::{BayesianModel, MixedModel},
-    cochanges::{CCFreqsCalculator, CCProbsCalculator},
-    naive::NaiveModel,
-    predict::RippleChangePredictor,
+    bayes::{BayesianModel, MixedModel}, cochanges::{CCFreqsCalculator, CCProbsCalculator}, naive::NaiveModel, nop::NopModel, predict::RippleChangePredictor
 };
 
 pub trait Model: CCFreqsCalculator + CCProbsCalculator + RippleChangePredictor {}
@@ -19,6 +16,7 @@ pub enum ModelTypes {
     Naive,
     Bayes,
     Mixed,
+    Nop,
 }
 
 impl ModelTypes {
@@ -27,6 +25,7 @@ impl ModelTypes {
             ModelTypes::Naive => Box::new(NaiveModel),
             ModelTypes::Bayes => Box::new(BayesianModel),
             ModelTypes::Mixed => Box::new(MixedModel),
+            ModelTypes::Nop => Box::new(NopModel)
         }
     }
 }
@@ -40,6 +39,7 @@ impl Display for ModelTypes {
                 ModelTypes::Naive => "naive",
                 ModelTypes::Bayes => "bayes",
                 ModelTypes::Mixed => "mixed",
+                ModelTypes::Nop => "nop",
             }
         )
     }
@@ -52,6 +52,7 @@ impl FromStr for ModelTypes {
             "naive" => Ok(ModelTypes::Naive),
             "bayes" => Ok(ModelTypes::Bayes),
             "mixed" => Ok(ModelTypes::Mixed),
+            "nop" => Ok(ModelTypes::Nop),
             _ => bail!("cannot parse DateGrouping from {}", s),
         }
     }
