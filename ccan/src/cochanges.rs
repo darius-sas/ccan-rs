@@ -26,7 +26,7 @@ pub trait CCFreqsCalculator {
 }
 
 pub trait CCProbsCalculator {
-    fn calculate_probs(&self, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix;
+    fn calculate_probs(&self, changes: &Changes, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix;
 }
 
 impl CoChanges {
@@ -42,7 +42,7 @@ impl CoChanges {
             "Calculating cochange probabilities for {} remaining files",
             cc_freqs.row_names.len()
         );
-        let cc_probs = model.calculate_probs(&cc_freqs, opts);
+        let cc_probs = model.calculate_probs(&changes, &cc_freqs, opts);
         CoChanges {
             freqs: cc_freqs,
             probs: cc_probs,

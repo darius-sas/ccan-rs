@@ -58,33 +58,27 @@ impl CCFreqsCalculator for BayesianModel {
 }
 
 impl CCProbsCalculator for BayesianModel {
-    fn calculate_probs(&self, freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
+    fn calculate_probs(&self, changes: &Changes, freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
         let mut cc_probs = CCMatrix::new(
             freqs.row_names.clone(),
             freqs.row_names.clone(),
             Some("impacted"),
             Some("changing"),
         );
-        let sum = freqs.matrix.sum();
-        if sum < 1e-6 {
-            return cc_probs;
-        }
-
-        let intersect = freqs.matrix.mapv(|x| x / sum); // P(impacted /\ changing)
-        let evidence = intersect
-            .columns()
-            .into_iter()
-            .map(|col| col.sum())
-            .collect::<Array1<f64>>();
-        let evidence_sum = evidence.sum();
-        let evidence = evidence.mapv(|x| x / evidence_sum); // P(changing)
+        let n_vers = changes.n_vers;
+        let priori = freqs.matrix.mapv(|x| x / n_vers); // P(impacted /\ changing)
+        let evidence = &changes.c_prob; // P(changing)
         for i in 0..cc_probs.matrix.nrows() {
-            let evidence = evidence[i];
-            if evidence < 1e-6 {
+            let e1 = evidence[i];
+            if e1 < 1e-6 {
                 continue;
             }
             for j in 0..cc_probs.matrix.ncols() {
-                cc_probs.matrix[[i, j]] = intersect[[i, j]] / evidence; // P(impacted | changing)
+                let e2 = evidence[j];
+                if e2 < 1e-6 {
+                    continue;
+                }
+                cc_probs.matrix[[i, j]] = priori[[i, j]] * e1 / e2 // P(impacted | changing)
             }
         }
         return cc_probs;
@@ -125,8 +119,8 @@ impl CCFreqsCalculator for MixedModel {
 }
 
 impl CCProbsCalculator for MixedModel {
-    fn calculate_probs(&self, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix {
-        BayesianModel::calculate_probs(&BayesianModel, freqs, opts)
+    fn calculate_probs(&self, changes: &Changes, freqs: &CCMatrix, opts: &CoChangesOpt) -> CCMatrix {
+        BayesianModel::calculate_probs(&BayesianModel, changes, freqs, opts)
     }
 }
 

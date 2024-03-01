@@ -105,7 +105,7 @@ impl CCFreqsCalculator for NaiveModel {
 }
 
 impl CCProbsCalculator for NaiveModel {
-    fn calculate_probs(&self, freqs: &CCMatrix, _: &CoChangesOpt) -> CCMatrix {
+    fn calculate_probs(&self, _: &Changes, freqs: &CCMatrix, _: &CoChangesOpt) -> CCMatrix {
         let mut cc_prob = CCMatrix::new(
             freqs.row_names.clone(),
             freqs.row_names.clone(),

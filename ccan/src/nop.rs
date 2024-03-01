@@ -15,7 +15,7 @@ impl CCFreqsCalculator for NopModel {
 }
 
 impl CCProbsCalculator for NopModel {
-    fn calculate_probs(&self, _freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
+    fn calculate_probs(&self, _: &Changes, _freqs: &CCMatrix, _opts: &CoChangesOpt) -> CCMatrix {
         debug!("Skipping probs calculation since 'nop' algorithm.");
         CCMatrix::new(Vec::new(), Vec::new(), None, None)
     }

@@ -10,7 +10,8 @@ use crate::matrix::NamedMatrix;
 pub struct Changes {
     pub freqs: NamedMatrix<Rc<String>, DateTime<Utc>>,
     pub c_freq: Array1<i32>,
-    pub c_prob: Array1<f64>
+    pub c_prob: Array1<f64>,
+    pub n_vers: f64
 }
 
 impl Changes {
@@ -32,10 +33,11 @@ impl Changes {
             Some("files"),
             Some("dates")
         );
-        let n = changes.matrix.nrows();
-        let c_freq= Array1::zeros(n);
-        let c_prob =  Array1::zeros(n);
-        let mut cc = Changes { freqs: changes, c_freq, c_prob };
+        let n_files = changes.matrix.nrows();
+        let n_vers = changes.matrix.ncols() as f64;
+        let c_freq= Array1::zeros(n_files);
+        let c_prob =  Array1::zeros(n_files);
+        let mut cc = Changes { freqs: changes, c_freq, c_prob, n_vers };
         cc.calculate_changes(diffs);
         cc.calculate_c_freq_and_prob();
         cc
